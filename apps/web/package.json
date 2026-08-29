@@ -1,0 +1,26 @@
+{
+  "name": "@gradmatch/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "pnpm exec biome check .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node ../../scripts/noop-workspace-test.mjs apps/web"
+  },
+  "dependencies": {
+    "@gradmatch/design-tokens": "workspace:*",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "26.4.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "postcss": "8.5.23"
+  }
+}

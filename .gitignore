@@ -11,10 +11,10 @@ __pycache__/
 node_modules/
 coverage/
 dist/
+*.tsbuildinfo
 playwright-report/
 test-results/
 .turbo/
 .pnpm-store/
 minio-data/
 postgres-data/
-
