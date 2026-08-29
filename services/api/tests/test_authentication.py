@@ -45,6 +45,11 @@ def test_headless_authentication_requires_verified_email_and_supports_both_login
     assert getattr(settings, "ACCOUNT_LOGIN_METHODS", None) == {"email"}
     assert getattr(settings, "ACCOUNT_LOGIN_BY_CODE_ENABLED", None) is True
     assert getattr(settings, "ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND", None) is True
+    assert getattr(settings, "ACCOUNT_LOGIN_BY_CODE_FORMAT", None) == {
+        "numeric": True,
+        "length": 6,
+        "dashed": False,
+    }
     assert getattr(settings, "ACCOUNT_PREVENT_ENUMERATION", None) is True
 
 
@@ -149,10 +154,7 @@ def test_verified_user_can_log_in_with_a_one_time_code(client: Client) -> None:
     )
     assert request_response.status_code == 401
 
-    match = re.search(
-        r"\b([BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4})\b",
-        email_body(),
-    )
+    match = re.search(r"\b(\d{6})\b", email_body())
     assert match is not None
 
     confirm_response = client.post(
@@ -220,10 +222,7 @@ def test_one_time_code_expires_before_confirmation(client: Client) -> None:
     )
     assert request_response.status_code == 401
 
-    code_match = re.search(
-        r"\b([BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4})\b",
-        email_body(),
-    )
+    code_match = re.search(r"\b(\d{6})\b", email_body())
     assert code_match is not None
 
     expired_response = client.post(
