@@ -14,16 +14,9 @@ def test_live_health_returns_ok(client: Client) -> None:
 def test_ready_health_returns_ok_when_every_dependency_is_available(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        system_api,
-        "check_readiness",
-        lambda: {
-            "database": "ok",
-            "redis": "ok",
-            "object_storage": "ok",
-        },
-        raising=False,
-    )
+    monkeypatch.setattr(system_api, "_check_database", lambda: "ok")
+    monkeypatch.setattr(system_api, "_check_redis", lambda: "ok")
+    monkeypatch.setattr(system_api, "_check_object_storage", lambda: "ok")
 
     response = client.get("/api/v1/health/ready")
 
@@ -41,16 +34,9 @@ def test_ready_health_returns_ok_when_every_dependency_is_available(
 def test_ready_health_returns_service_unavailable_when_a_dependency_fails(
     client: Client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        system_api,
-        "check_readiness",
-        lambda: {
-            "database": "ok",
-            "redis": "error",
-            "object_storage": "ok",
-        },
-        raising=False,
-    )
+    monkeypatch.setattr(system_api, "_check_database", lambda: "error")
+    monkeypatch.setattr(system_api, "_check_redis", lambda: "ok")
+    monkeypatch.setattr(system_api, "_check_object_storage", lambda: "ok")
 
     response = client.get("/api/v1/health/ready")
 
@@ -58,8 +44,8 @@ def test_ready_health_returns_service_unavailable_when_a_dependency_fails(
     assert response.json() == {
         "status": "error",
         "checks": {
-            "database": "ok",
-            "redis": "error",
+            "database": "error",
+            "redis": "ok",
             "object_storage": "ok",
         },
     }

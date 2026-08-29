@@ -35,7 +35,7 @@ def get_list_env(name: str, *, default: list[str]) -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
-def build_database_config(database_url: str) -> dict[str, str]:
+def build_database_config(database_url: str) -> dict[str, object]:
     parsed_url = urlparse(database_url)
 
     if parsed_url.scheme in {"postgres", "postgresql"}:
@@ -46,6 +46,7 @@ def build_database_config(database_url: str) -> dict[str, str]:
             "PASSWORD": unquote(parsed_url.password or ""),
             "HOST": parsed_url.hostname or "",
             "PORT": str(parsed_url.port or ""),
+            "OPTIONS": {"connect_timeout": "1"},
         }
 
     if parsed_url.scheme == "sqlite":
