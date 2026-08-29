@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv --directory services/api sync --frozen --all-groups
+      - run: uv --directory services/api run ruff check .
+      - run: uv --directory services/api run pyright
+      - run: uv --directory services/api run pytest
+      - run: uv --directory services/api run python manage.py check
+      - run: uv --directory services/api run python manage.py makemigrations --check --dry-run
+
+  contracts-and-containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:api-drift
+      - run: pnpm check:compose
+      - run: pnpm check:ci
+      - run: cp .env.example .env
+      - run: docker compose config
+      - run: docker compose build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [typescript, python, contracts-and-containers]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: cp .env.example .env
+      - run: sed -i 's/^CADDY_HTTP_PORT=.*/CADDY_HTTP_PORT=8080/' .env
+      - run: docker compose up --build --wait
+      - run: pnpm --filter @gradmatch/web exec playwright install --with-deps chromium
+      - run: pnpm e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+          MAILPIT_BASE_URL: http://127.0.0.1:8025
+      - if: always()
+        run: docker compose down --volumes --remove-orphans

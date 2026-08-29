@@ -21,6 +21,35 @@ GradMatch is a Web-first monorepo with a Django API, headless authentication, an
 - `pnpm generate:api`: export the core and auth OpenAPI specifications, then regenerate TypeScript clients
 - `pnpm check:api-drift`: regenerate the clients and fail when committed contract artifacts drift
 - `pnpm check:compose`: parse Compose, inspect Caddy routing, and verify container service/health/secret boundaries without starting Docker
+- `pnpm check`: run all Web/TypeScript quality gates used by CI
+- `pnpm e2e`: run Playwright against the Compose stack at `http://127.0.0.1:8080`
+
+## Windows-first setup
+
+Prerequisites: Node.js 22+, pnpm 11+, Python 3.11–3.13, and Docker Desktop for the full integration stack. Copy the local environment template and install both dependency sets:
+
+```powershell
+Copy-Item .env.example .env
+pnpm install --frozen-lockfile
+python -m uv --directory services/api sync --all-groups
+```
+
+For direct local API work, start PostgreSQL, Redis, MinIO, and Mailpit through Compose first, then apply migrations exactly once:
+
+```powershell
+docker compose up -d postgres redis minio minio-init mailpit
+python -m uv --directory services/api run python manage.py migrate
+python -m uv --directory services/api run python manage.py collectstatic --noinput
+```
+
+Generate contracts after changing a Django Ninja or allauth interface:
+
+```powershell
+pnpm generate:api
+pnpm check:api-drift
+```
+
+Use `pnpm dev` for Web workspace processes. The Docker Compose path is the supported way to exercise same-origin Web/API behavior and end-to-end authentication. On this current Windows machine Docker is not installed, so `docker compose config`, image builds, and E2E cannot be run locally; CI runs those gates on Linux.
 
 ## Python Service
 

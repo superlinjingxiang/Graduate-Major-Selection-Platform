@@ -32,13 +32,7 @@ function runUv(args) {
   assertSuccess(result);
 }
 
-runUv([
-  "--directory",
-  "services/api",
-  "run",
-  "python",
-  "scripts/export_openapi.py",
-]);
+runUv(["--directory", "services/api", "run", "python", "scripts/export_openapi.py"]);
 run(process.execPath, [
   "node_modules/openapi-typescript/bin/cli.js",
   "packages/api-client/openapi/core.openapi.json",
