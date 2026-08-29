@@ -48,6 +48,12 @@ uv --directory services/api run pytest
 - Browser clients authenticate with secure HttpOnly session cookies; future mobile clients use allauth's `X-Session-Token`. GradMatch does not issue JWTs.
 - Local email is delivered to the SMTP host defined by `EMAIL_SMTP_*`; Docker Compose will point those variables at Mailpit.
 
+## Ingestion foundation
+
+- `gradmatch.ingestion` is a Celery-driven modular-monolith app. `ingestion.run_source` records each run and retries operational failures through Celery.
+- The first `smoke-fixture` source reads only `services/api/tests/fixtures/sample-source.html`; it never requests a public website.
+- Raw source bytes are de-duplicated by SHA-256 and stored through an S3-compatible artifact-store boundary. Future adapters can use the HTTPX or Playwright fetcher boundaries without changing the run lifecycle.
+
 ## Scope Notes
 
 The mobile app is intentionally absent in this repository stage. Expo support is deferred until a later task.

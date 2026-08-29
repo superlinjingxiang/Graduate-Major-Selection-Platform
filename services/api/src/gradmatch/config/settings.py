@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "allauth.headless",
     "allauth.socialaccount",
     "gradmatch.accounts",
+    "gradmatch.ingestion",
     "gradmatch.system",
 ]
 
@@ -136,6 +137,11 @@ EMAIL_PORT = int(get_env("EMAIL_SMTP_PORT", default="1025"))
 EMAIL_HOST_USER = get_env("EMAIL_SMTP_USER", default="")
 EMAIL_HOST_PASSWORD = get_env("EMAIL_SMTP_PASSWORD", default="")
 EMAIL_USE_TLS = get_bool_env("EMAIL_USE_TLS", default=False)
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_TASK_ALWAYS_EAGER = get_bool_env("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = get_bool_env("CELERY_TASK_EAGER_PROPAGATES", default=True)
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
