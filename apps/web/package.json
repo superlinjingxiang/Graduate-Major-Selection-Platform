@@ -8,19 +8,31 @@
     "build": "next build",
     "lint": "pnpm exec biome check .",
     "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
-    "test": "node ../../scripts/noop-workspace-test.mjs apps/web"
+    "test": "vitest run"
   },
   "dependencies": {
+    "@gradmatch/api-client": "workspace:*",
     "@gradmatch/design-tokens": "workspace:*",
+    "@hookform/resolvers": "^5.9.1",
+    "@radix-ui/react-slot": "^1.3.3",
+    "@tanstack/react-query": "^5.102.8",
     "next": "16.3.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-hook-form": "^7.86.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
     "@types/node": "26.4.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
-    "postcss": "8.5.23"
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^30.0.1",
+    "postcss": "8.5.23",
+    "vitest": "^4.1.11"
   }
 }
