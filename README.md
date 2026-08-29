@@ -22,13 +22,22 @@ GradMatch starts as a Web-first monorepo foundation for a future Django API and 
 
 ## Python Service
 
-Use the local `uv` installation to manage `services/api`:
+Use portable `uv` commands scoped to `services/api`:
 
 ```powershell
-& 'C:\Users\76358\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\Scripts\uv.exe' lock
-& 'C:\Users\76358\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\Scripts\uv.exe' run ruff check .
-& 'C:\Users\76358\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\Scripts\uv.exe' run pyright
-& 'C:\Users\76358\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\Scripts\uv.exe' run pytest
+python -m uv --directory services/api lock
+python -m uv --directory services/api run ruff check .
+python -m uv --directory services/api run pyright
+python -m uv --directory services/api run pytest
+```
+
+If `uv` is on your `PATH`, the same root-safe commands also work as:
+
+```powershell
+uv --directory services/api lock
+uv --directory services/api run ruff check .
+uv --directory services/api run pyright
+uv --directory services/api run pytest
 ```
 
 ## Scope Notes

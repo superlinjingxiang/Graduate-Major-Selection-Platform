@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "pnpm exec biome check .",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
     "test": "node ../../scripts/noop-workspace-test.mjs apps/web"
   },
   "dependencies": {
