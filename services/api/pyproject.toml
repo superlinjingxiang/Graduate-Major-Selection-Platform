@@ -4,7 +4,13 @@ version = "0.1.0"
 description = "GradMatch API service foundation for future Django integration."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
-dependencies = []
+dependencies = [
+  "boto3>=1.40.0,<2",
+  "Django>=5.2,<5.3",
+  "django-ninja>=1.4.5,<2",
+  "psycopg[binary]>=3.2.0,<4",
+  "redis>=6.4.0,<7"
+]
 
 [build-system]
 requires = ["hatchling>=1.28.0"]
@@ -12,10 +18,12 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+  "boto3-stubs[s3]>=1.40,<2",
+  "django-stubs>=5.2,<6",
   "pyright>=1.1.405,<2",
   "pytest>=8.4.1,<9",
   "pytest-django>=4.11.1,<5",
-  "ruff>=0.13.0,<0.14"
+  "ruff>=0.13.0,<0.14",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -23,6 +31,7 @@ packages = ["src/gradmatch"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
+DJANGO_SETTINGS_MODULE = "gradmatch.config.settings_test"
 pythonpath = ["src"]
 testpaths = ["tests"]
 
