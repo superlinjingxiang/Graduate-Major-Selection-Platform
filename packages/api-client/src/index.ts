@@ -1,31 +1,11 @@
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+import createClient from "openapi-fetch";
 
-export interface ApiClientConfig {
-  readonly baseUrl: string;
-  readonly timeoutMs?: number;
-  readonly userAgent?: string;
-}
+import type { paths as AuthPaths } from "./generated/auth.js";
+import type { paths as CorePaths } from "./generated/core.js";
 
-export interface ApiRequest<Body = unknown> {
-  readonly method: HttpMethod;
-  readonly path: `/${string}`;
-  readonly headers?: Readonly<Record<string, string>>;
-  readonly query?: Readonly<Record<string, string | number | boolean>>;
-  readonly body?: Body;
-}
+export type { components as AuthComponents, paths as AuthPaths } from "./generated/auth.js";
+export type { components as CoreComponents, paths as CorePaths } from "./generated/core.js";
 
-export interface ApiResponse<Data = unknown> {
-  readonly status: number;
-  readonly data: Data;
-  readonly headers?: Readonly<Record<string, string>>;
-}
+export const coreClient = (baseUrl: string) => createClient<CorePaths>({ baseUrl });
 
-export interface PendingGeneratedClients {
-  readonly coreClient: "pending-task-3";
-  readonly authClient: "pending-task-3";
-}
-
-export const GENERATED_CLIENT_STATUS: PendingGeneratedClients = {
-  coreClient: "pending-task-3",
-  authClient: "pending-task-3",
-};
+export const authClient = (baseUrl: string) => createClient<AuthPaths>({ baseUrl });

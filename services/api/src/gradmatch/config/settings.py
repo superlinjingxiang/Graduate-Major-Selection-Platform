@@ -61,7 +61,13 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.sites",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
+    "allauth.headless",
+    "allauth.socialaccount",
+    "gradmatch.accounts",
     "gradmatch.system",
 ]
 
@@ -71,6 +77,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -95,6 +102,41 @@ ASGI_APPLICATION = "gradmatch.config.asgi.application"
 
 DATABASES = {"default": build_database_config(DATABASE_URL)}
 
+AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+SITE_ID = 1
+
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_BY_CODE_ENABLED = True
+ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+ACCOUNT_PREVENT_ENUMERATION = True
+
+HEADLESS_ONLY = True
+HEADLESS_CLIENTS = ("browser", "app")
+HEADLESS_SERVE_SPECIFICATION = True
+HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.strategies.sessions.SessionTokenStrategy"
+WEB_BASE_URL = get_env("WEB_BASE_URL", default="http://localhost:3000").rstrip("/")
+HEADLESS_FRONTEND_URLS = {
+    "account_confirm_email": f"{WEB_BASE_URL}/account/verify-email/{{key}}",
+    "account_reset_password_from_key": f"{WEB_BASE_URL}/account/password/reset/{{key}}",
+    "account_signup": f"{WEB_BASE_URL}/account/signup",
+}
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+DEFAULT_FROM_EMAIL = get_env("EMAIL_FROM", default="noreply@example.test")
+EMAIL_HOST = get_env("EMAIL_SMTP_HOST", default="localhost")
+EMAIL_PORT = int(get_env("EMAIL_SMTP_PORT", default="1025"))
+EMAIL_HOST_USER = get_env("EMAIL_SMTP_USER", default="")
+EMAIL_HOST_PASSWORD = get_env("EMAIL_SMTP_PASSWORD", default="")
+EMAIL_USE_TLS = get_bool_env("EMAIL_USE_TLS", default=False)
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
@@ -104,3 +146,5 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SESSION_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"

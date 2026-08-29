@@ -1,14 +1,14 @@
 # GradMatch
 
-GradMatch starts as a Web-first monorepo foundation for a future Django API and Next.js product. Task 1 establishes the workspace, shared packages, Python service skeleton, and validation commands only.
+GradMatch is a Web-first monorepo with a Django API, headless authentication, and a Next.js product shell. Shared TypeScript packages remain platform-neutral so a future Expo application can reuse its domain rules, tokens, and generated API clients.
 
 ## Workspace
 
 - `apps/web`: minimal Next.js App Router foundation page
-- `packages/api-client`: shared TypeScript API boundary placeholders for future generated clients
+- `packages/api-client`: generated TypeScript clients for the Django Ninja core API and allauth Headless API
 - `packages/domain`: shared TypeScript domain contracts
 - `packages/design-tokens`: typed semantic design tokens with no browser dependencies
-- `services/api`: uv-managed Python service package; Django is intentionally deferred to Task 2
+- `services/api`: uv-managed Django modular monolith with Django Ninja, Admin, and allauth Headless
 
 ## Commands
 
@@ -18,7 +18,8 @@ GradMatch starts as a Web-first monorepo foundation for a future Django API and 
 - `pnpm typecheck`: run strict TypeScript checks across the workspace
 - `pnpm test`: run workspace smoke tests
 - `pnpm format:check`: verify formatting with Biome
-- `pnpm generate:api`: placeholder command until Task 3 generates OpenAPI clients
+- `pnpm generate:api`: export the core and auth OpenAPI specifications, then regenerate TypeScript clients
+- `pnpm check:api-drift`: regenerate the clients and fail when committed contract artifacts drift
 
 ## Python Service
 
@@ -39,6 +40,13 @@ uv --directory services/api run ruff check .
 uv --directory services/api run pyright
 uv --directory services/api run pytest
 ```
+
+## Authentication and API contracts
+
+- `GET /api/v1/health/live`, `GET /api/v1/health/ready`, and `GET /api/v1/meta` provide the initial system contract.
+- `/_allauth/*` supplies email sign-up, verification, password login, one-time-code login, logout, and Headless OpenAPI documentation.
+- Browser clients authenticate with secure HttpOnly session cookies; future mobile clients use allauth's `X-Session-Token`. GradMatch does not issue JWTs.
+- Local email is delivered to the SMTP host defined by `EMAIL_SMTP_*`; Docker Compose will point those variables at Mailpit.
 
 ## Scope Notes
 

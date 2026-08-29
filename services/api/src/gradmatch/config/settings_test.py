@@ -11,4 +11,4 @@ DATABASES = {  # pyright: ignore[reportConstantRedefinition]
     },
 }
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"  # pyright: ignore[reportConstantRedefinition]

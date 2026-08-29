@@ -8,7 +8,11 @@ from django.conf import settings
 from django.db import DatabaseError, connections
 from django.http import HttpRequest
 from ninja import NinjaAPI, Schema, Status
+from ninja.security import django_auth
 from redis import Redis
+
+from gradmatch.accounts.authentication import x_session_token_header_auth
+from gradmatch.accounts.models import User
 
 
 class RedisProbe(Protocol):
@@ -31,6 +35,11 @@ class MetaResponse(Schema):
     name: str
     environment: str
     version: str
+
+
+class CurrentUserResponse(Schema):
+    id: int
+    email: str
 
 
 api = NinjaAPI(
@@ -68,6 +77,18 @@ def meta(request: HttpRequest) -> MetaResponse:
         environment=settings.GRADMATCH_ENVIRONMENT,
         version=settings.GRADMATCH_APP_VERSION,
     )
+
+
+@api.get(
+    "/me",
+    auth=[django_auth, x_session_token_header_auth],
+    response=CurrentUserResponse,
+    operation_id="get_current_user",
+)
+def current_user(request: HttpRequest) -> CurrentUserResponse:
+    request_auth = cast(object, getattr(request, "auth", None))
+    user = cast(User, request_auth)
+    return CurrentUserResponse(id=user.pk, email=user.email)
 
 
 def check_readiness() -> dict[str, HealthStatus]:
