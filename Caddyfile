@@ -1,0 +1,21 @@
+{
+  auto_https off
+}
+
+:80 {
+  encode zstd gzip
+
+  @django path /api/* /_allauth/* /accounts/* /admin/* /static/* /media/*
+  handle @django {
+    reverse_proxy api:8000 {
+      header_up Host {host}
+      header_up X-Forwarded-Host {host}
+      header_up X-Forwarded-Proto {scheme}
+      header_up X-Real-IP {remote_host}
+    }
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}

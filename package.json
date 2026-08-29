@@ -15,12 +15,14 @@
     "test": "pnpm exec turbo test",
     "format:check": "pnpm exec biome check . --linter-enabled=false --assist-enabled=false",
     "generate:api": "node ./scripts/generate-api.mjs",
-    "check:api-drift": "node ./scripts/check-api-drift.mjs"
+    "check:api-drift": "node ./scripts/check-api-drift.mjs",
+    "check:compose": "node ./scripts/check-compose.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.11",
     "openapi-typescript": "7.13.0",
     "turbo": "2.10.12",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "yaml": "2.8.2"
   }
 }

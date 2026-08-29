@@ -20,6 +20,7 @@ GradMatch is a Web-first monorepo with a Django API, headless authentication, an
 - `pnpm format:check`: verify formatting with Biome
 - `pnpm generate:api`: export the core and auth OpenAPI specifications, then regenerate TypeScript clients
 - `pnpm check:api-drift`: regenerate the clients and fail when committed contract artifacts drift
+- `pnpm check:compose`: parse Compose, inspect Caddy routing, and verify container service/health/secret boundaries without starting Docker
 
 ## Python Service
 
@@ -47,6 +48,19 @@ uv --directory services/api run pytest
 - `/_allauth/*` supplies email sign-up, verification, password login, one-time-code login, logout, and Headless OpenAPI documentation.
 - Browser clients authenticate with secure HttpOnly session cookies; future mobile clients use allauth's `X-Session-Token`. GradMatch does not issue JWTs.
 - Local email is delivered to the SMTP host defined by `EMAIL_SMTP_*`; Docker Compose will point those variables at Mailpit.
+
+## Local container stack
+
+Docker Compose is the first deployment target: Caddy provides one browser origin, with Django handling API, allauth, admin, and static/media paths while Next.js handles the remaining pages. PostgreSQL, Redis, MinIO, Mailpit, Celery worker/beat, and a one-shot migration service remain internal to the stack.
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build --wait
+```
+
+Open `http://localhost` for GradMatch and `http://localhost:8025` for Mailpit. The `migrate` one-shot service applies migrations and collects static files into the shared read-only API volume before API, worker, or beat processes start. Stop the stack with `docker compose down`; add `--volumes` only when you intentionally want to discard local PostgreSQL, MinIO, and static-file data.
+
+The committed `.env.example` values are development-only placeholders. Keep the copied `.env` local, use a long unique Django secret for any deployment-like environment, and never commit real credentials.
 
 ## Ingestion foundation
 

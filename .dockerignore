@@ -1,0 +1,17 @@
+.env
+.env.*
+.git
+.next
+.pnpm-store
+.superpowers
+.turbo
+.venv
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/dist
+coverage
+playwright-report
+test-results
