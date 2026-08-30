@@ -67,6 +67,7 @@ services:
 
   minio-init:
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    entrypoint: /bin/sh
     depends_on:
       minio:
         condition: service_healthy
@@ -75,7 +76,6 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:?Set S3_BUCKET_NAME in .env}
     command:
-      - /bin/sh
       - -ec
       - |
         mc alias set gradmatch http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
@@ -176,6 +176,8 @@ services:
     env_file: .env
     environment: *api-environment
     command: ["celery", "-A", "gradmatch", "beat", "--loglevel=INFO"]
+    healthcheck:
+      disable: true
 
   web:
     build:

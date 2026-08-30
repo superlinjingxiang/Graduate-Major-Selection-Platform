@@ -44,6 +44,12 @@ for (const serviceName of requiredHealthChecks) {
     errors.push(`Missing functional healthcheck for: ${serviceName}`);
   }
 }
+if (services["minio-init"]?.entrypoint !== "/bin/sh") {
+  errors.push("minio-init must override the mc image entrypoint with /bin/sh");
+}
+if (services.beat?.healthcheck?.disable !== true) {
+  errors.push("beat must disable the inherited API HTTP healthcheck");
+}
 const requiredDependencies = [
   ["migrate", "postgres", "service_healthy"],
   ["migrate", "redis", "service_healthy"],
