@@ -15,7 +15,7 @@ const emailSchema = z.object({
 });
 
 const passwordSchema = emailSchema.extend({
-  password: z.string().min(12, "密码至少需要 12 个字符"),
+  password: z.string().min(8, "密码至少需要 8 个字符"),
 });
 
 const codeSchema = z.object({
@@ -40,19 +40,59 @@ function FormField({
   error,
   id,
   label,
+  showPasswordToggle = false,
   type = "text",
   ...inputProps
 }: Readonly<{
   error: string | undefined;
   id: string;
   label: string;
+  showPasswordToggle?: boolean;
   type?: "email" | "password" | "text";
 }> &
   ComponentPropsWithoutRef<typeof Input>) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const input = (
+    <Input
+      aria-invalid={Boolean(error)}
+      id={id}
+      type={showPasswordToggle && isPasswordVisible ? "text" : type}
+      {...inputProps}
+    />
+  );
+
   return (
     <div className="form-field">
       <label htmlFor={id}>{label}</label>
-      <Input aria-invalid={Boolean(error)} id={id} type={type} {...inputProps} />
+      {showPasswordToggle ? (
+        <div className="input-with-action">
+          {input}
+          <button
+            aria-label={isPasswordVisible ? "隐藏密码" : "显示密码"}
+            className="password-toggle"
+            onClick={() => setIsPasswordVisible((visible) => !visible)}
+            type="button"
+          >
+            <svg aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isPasswordVisible ? (
+                <>
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </>
+              ) : (
+                <>
+                  <path d="m3 3 18 18" />
+                  <path d="M10.6 6.2A10.6 10.6 0 0 1 12 6c6 0 9.5 6 9.5 6a17.5 17.5 0 0 1-3.2 3.8" />
+                  <path d="M6.2 6.2A17.9 17.9 0 0 0 2.5 12s3.5 6 9.5 6c1.1 0 2.1-.2 3-.5" />
+                  <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                </>
+              )}
+            </svg>
+          </button>
+        </div>
+      ) : (
+        input
+      )}
       {error ? <span className="field-error">{error}</span> : null}
     </div>
   );
@@ -86,6 +126,7 @@ export function SignupForm() {
         label="密码"
         {...form.register("password")}
         id="signup-password"
+        showPasswordToggle
         type="password"
       />
       <Button disabled={mutation.isPending} type="submit">

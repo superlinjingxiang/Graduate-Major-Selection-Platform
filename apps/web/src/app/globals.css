@@ -362,6 +362,38 @@ input {
   padding: 0.65rem 0.8rem;
 }
 
+.input-with-action {
+  position: relative;
+}
+
+.input-with-action .input {
+  padding-right: 3.25rem;
+}
+
+.password-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--gm-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 2.5rem;
+  justify-content: center;
+  position: absolute;
+  right: 0.2rem;
+  top: 0.175rem;
+  width: 2.5rem;
+}
+
+.password-toggle:hover {
+  color: var(--gm-brand);
+}
+
+.password-toggle svg {
+  height: 1.15rem;
+  width: 1.15rem;
+}
+
 .input[aria-invalid="true"] {
   border-color: var(--gm-highlight);
 }

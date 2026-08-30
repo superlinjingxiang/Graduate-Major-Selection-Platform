@@ -60,6 +60,35 @@ describe("authentication forms", () => {
 
     expect(await screen.findByText("请输入有效邮箱地址")).toBeInTheDocument();
     expect(transports.auth.POST).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("密码"), "1234567");
+    await user.click(screen.getByRole("button", { name: "创建账户" }));
+    expect(await screen.findByText("密码至少需要 8 个字符")).toBeInTheDocument();
+  });
+
+  it("accepts an eight-character signup password", async () => {
+    transports.auth.POST.mockResolvedValueOnce(authenticatedResponse(401));
+    const user = userEvent.setup();
+    renderWithQuery(<SignupForm />);
+
+    await user.type(screen.getByLabelText("邮箱"), "student@example.test");
+    await user.type(screen.getByLabelText("密码"), "12345678");
+    await user.click(screen.getByRole("button", { name: "创建账户" }));
+
+    await waitFor(() => expect(transports.auth.POST).toHaveBeenCalled());
+  });
+
+  it("reveals and re-hides the signup password without changing it", async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<SignupForm />);
+    const password = screen.getByLabelText("密码");
+
+    await user.type(password, "12345678");
+    expect(password).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: "显示密码" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("12345678");
+    expect(screen.getByRole("button", { name: "隐藏密码" })).toBeInTheDocument();
   });
 
   it("submits signup with the generated allauth request shape and renders the pending state", async () => {
