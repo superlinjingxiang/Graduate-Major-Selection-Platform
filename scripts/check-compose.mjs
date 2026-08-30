@@ -44,6 +44,9 @@ for (const serviceName of requiredHealthChecks) {
     errors.push(`Missing functional healthcheck for: ${serviceName}`);
   }
 }
+if (!services.postgres?.ports?.includes("127.0.0.1:5432:5432")) {
+  errors.push("postgres must expose port 5432 to localhost only for local database tooling");
+}
 if (services["minio-init"]?.entrypoint !== "/bin/sh") {
   errors.push("minio-init must override the mc image entrypoint with /bin/sh");
 }
