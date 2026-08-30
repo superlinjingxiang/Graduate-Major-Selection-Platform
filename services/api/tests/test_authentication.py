@@ -87,6 +87,27 @@ def test_current_user_endpoint_rejects_anonymous_requests(client: Client) -> Non
     assert response.status_code == 401
 
 
+def test_password_policy_requires_at_least_eight_characters() -> None:
+    assert settings.AUTH_PASSWORD_VALIDATORS == [
+        {
+            "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+            "OPTIONS": {"min_length": 8},
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_signup_rejects_a_password_shorter_than_eight_characters(client: Client) -> None:
+    response = client.post(
+        "/_allauth/browser/v1/auth/signup",
+        data=json.dumps({"email": "short@example.test", "password": "1234567"}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "8" in str(response.json())
+
+
 @pytest.mark.django_db
 def test_unverified_signup_cannot_access_the_current_user_endpoint(client: Client) -> None:
     response = client.post(

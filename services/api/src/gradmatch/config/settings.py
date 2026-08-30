@@ -126,6 +126,13 @@ ACCOUNT_LOGIN_BY_CODE_FORMAT = {
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
 ACCOUNT_PREVENT_ENUMERATION = True
 
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    }
+]
+
 HEADLESS_ONLY = True
 HEADLESS_CLIENTS = ("browser", "app")
 HEADLESS_SERVE_SPECIFICATION = True
