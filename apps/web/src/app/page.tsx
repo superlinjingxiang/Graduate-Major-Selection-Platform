@@ -1,8 +1,4 @@
 import { Panel } from "../components/ui/panel";
-import { loadServerStatus } from "../features/status/status";
-import { StatusPanel } from "../features/status/status-panel";
-
-export const dynamic = "force-dynamic";
 
 const foundations = [
   ["Web 优先", "以轻量服务端渲染呈现清晰、快速的首屏体验。"],
@@ -10,9 +6,7 @@ const foundations = [
   ["可靠数据", "采集链路保留原始快照，让后续推荐可以追溯。"],
 ] as const;
 
-export default async function HomePage() {
-  const presentation = await loadServerStatus();
-
+export default function HomePage() {
   return (
     <main className="page-shell">
       <div className="ambient-orb ambient-orb-one" aria-hidden="true" />
@@ -50,7 +44,6 @@ export default async function HomePage() {
               </a>
             </div>
           </div>
-          <StatusPanel presentation={presentation} />
         </section>
 
         <section aria-label="平台基础能力" className="foundation-grid">

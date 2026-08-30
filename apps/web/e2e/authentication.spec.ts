@@ -36,12 +36,16 @@ function extractOneTimeCode(emailText: string) {
   return match[0];
 }
 
-test("renders the server status page", async ({ page }) => {
+test("renders a product homepage without operational details", async ({ page }) => {
   await page.goto("/");
+
   await expect(
-    page.getByRole("heading", { name: /服务已准备就绪|服务暂未完全就绪/ }),
+    page.getByRole("heading", { name: "把复杂选择，变成更笃定的下一步。" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "创建账户" })).toBeVisible();
+  await expect(page.getByText("平台状态")).toHaveCount(0);
+  await expect(page.getByText("服务已准备就绪")).toHaveCount(0);
+  await expect(page.getByText("development", { exact: true })).toHaveCount(0);
 });
 
 test("completes email verification, password and code login, account display, and logout", async ({
