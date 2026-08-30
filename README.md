@@ -10,6 +10,10 @@ GradMatch is a Web-first monorepo with a Django API, headless authentication, an
 - `packages/design-tokens`: typed semantic design tokens with no browser dependencies
 - `services/api`: uv-managed Django modular monolith with Django Ninja, Admin, and allauth Headless
 
+## Product requirements
+
+Confirmed product interactions and their acceptance criteria live in [docs/product-requirements.md](docs/product-requirements.md). Add new product feedback there before turning it into an implementation task.
+
 ## Commands
 
 - `pnpm dev`: start the monorepo development processes
