@@ -28,6 +28,30 @@ type CodeValues = z.infer<typeof codeSchema>;
 
 const browserPath = { params: { path: { client: "browser" as const } } };
 
+let browserAuthConfigRequest: Promise<void> | undefined;
+
+function hasBrowserCsrfCookie() {
+  return (
+    typeof document !== "undefined" &&
+    document.cookie.split(";").some((cookie) => cookie.trim().startsWith("csrftoken="))
+  );
+}
+
+async function ensureBrowserAuthInitialized() {
+  if (hasBrowserCsrfCookie()) return;
+
+  browserAuthConfigRequest ??= browserAuthClient
+    .GET("/_allauth/{client}/v1/config", browserPath)
+    .then((result) => {
+      if (!result.response.ok) throw new Error("browser authentication config failed");
+    })
+    .finally(() => {
+      browserAuthConfigRequest = undefined;
+    });
+
+  await browserAuthConfigRequest;
+}
+
 function FormNotice({ kind, message }: Readonly<{ kind: "error" | "success"; message: string }>) {
   return (
     <p aria-live="polite" className={`form-notice form-notice-${kind}`}>
@@ -102,6 +126,7 @@ export function SignupForm() {
   const form = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
   const mutation = useMutation({
     mutationFn: async (values: PasswordValues) => {
+      await ensureBrowserAuthInitialized();
       const result = await browserAuthClient.POST("/_allauth/{client}/v1/auth/signup", {
         ...browserPath,
         body: values,
@@ -144,6 +169,7 @@ export function PasswordLoginForm() {
   const form = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
   const mutation = useMutation({
     mutationFn: async (values: PasswordValues) => {
+      await ensureBrowserAuthInitialized();
       const result = await browserAuthClient.POST("/_allauth/{client}/v1/auth/login", {
         ...browserPath,
         body: values,
@@ -185,6 +211,7 @@ export function OneTimeCodeForm() {
   const codeForm = useForm<CodeValues>({ resolver: zodResolver(codeSchema) });
   const requestMutation = useMutation({
     mutationFn: async (values: EmailValues) => {
+      await ensureBrowserAuthInitialized();
       const result = await browserAuthClient.POST("/_allauth/{client}/v1/auth/code/request", {
         ...browserPath,
         body: values,
@@ -197,6 +224,7 @@ export function OneTimeCodeForm() {
   });
   const confirmMutation = useMutation({
     mutationFn: async (values: CodeValues) => {
+      await ensureBrowserAuthInitialized();
       const result = await browserAuthClient.POST("/_allauth/{client}/v1/auth/code/confirm", {
         ...browserPath,
         body: values,
@@ -261,6 +289,7 @@ export function OneTimeCodeForm() {
 export function EmailVerificationForm({ initialKey }: Readonly<{ initialKey: string }>) {
   const mutation = useMutation({
     mutationFn: async () => {
+      await ensureBrowserAuthInitialized();
       const result = await browserAuthClient.POST("/_allauth/{client}/v1/auth/email/verify", {
         ...browserPath,
         body: { key: initialKey },
@@ -288,6 +317,7 @@ export function EmailVerificationForm({ initialKey }: Readonly<{ initialKey: str
 export function LogoutButton() {
   const mutation = useMutation({
     mutationFn: async () => {
+      await ensureBrowserAuthInitialized();
       const result = await browserAuthClient.DELETE(
         "/_allauth/{client}/v1/auth/session",
         browserPath,

@@ -46,6 +46,7 @@ test("renders a product homepage without operational details", async ({ page }) 
   await expect(page.getByText("平台状态")).toHaveCount(0);
   await expect(page.getByText("服务已准备就绪")).toHaveCount(0);
   await expect(page.getByText("development", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/\b(?:v)?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b/i)).toHaveCount(0);
 });
 
 test("completes email verification, password and code login, account display, and logout", async ({
@@ -57,7 +58,7 @@ test("completes email verification, password and code login, account display, an
 
   await page.goto("/account/signup");
   await page.getByLabel("邮箱").fill(email);
-  await page.getByLabel("密码").fill(password);
+  await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "创建账户" }).click();
   await expect(page.getByText("验证邮件已发送，请完成邮箱验证。")).toBeVisible();
 
@@ -68,7 +69,7 @@ test("completes email verification, password and code login, account display, an
 
   await page.goto("/account/login");
   await page.getByLabel("邮箱").fill(email);
-  await page.getByLabel("密码").fill(password);
+  await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByRole("button", { name: "密码登录" }).click();
   await expect(page.getByText("登录成功。")).toBeVisible();
 

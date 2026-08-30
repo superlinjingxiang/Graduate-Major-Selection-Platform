@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const transports = vi.hoisted(() => ({
   auth: {
     DELETE: vi.fn(),
+    GET: vi.fn(),
     POST: vi.fn(),
   },
   core: {
@@ -50,6 +51,9 @@ function authenticatedResponse(status = 200) {
 describe("authentication forms", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // biome-ignore lint/suspicious/noDocumentCookie: the browser authentication flow reads Django's CSRF cookie.
+    document.cookie = "csrftoken=; Max-Age=0; path=/";
+    transports.auth.GET.mockResolvedValue({ response: new Response(null, { status: 200 }) });
   });
 
   it("validates signup input before sending a request", async () => {
@@ -101,12 +105,71 @@ describe("authentication forms", () => {
     await user.click(screen.getByRole("button", { name: "创建账户" }));
 
     await waitFor(() => {
+      expect(transports.auth.GET).toHaveBeenCalledWith("/_allauth/{client}/v1/config", {
+        params: { path: { client: "browser" } },
+      });
       expect(transports.auth.POST).toHaveBeenCalledWith("/_allauth/{client}/v1/auth/signup", {
         body: { email: "student@example.test", password: "strong-password-123" },
         params: { path: { client: "browser" } },
       });
     });
+    const configCallOrder = transports.auth.GET.mock.invocationCallOrder[0];
+    const signupCallOrder = transports.auth.POST.mock.invocationCallOrder[0];
+    if (configCallOrder === undefined || signupCallOrder === undefined) {
+      throw new Error("Expected authentication initialization and signup calls.");
+    }
+    expect(configCallOrder).toBeLessThan(signupCallOrder);
     expect(screen.getByText("验证邮件已发送，请完成邮箱验证。")).toBeInTheDocument();
+  });
+
+  it("skips authentication initialization when the CSRF cookie already exists", async () => {
+    // biome-ignore lint/suspicious/noDocumentCookie: the browser authentication flow reads Django's CSRF cookie.
+    document.cookie = "csrftoken=existing-token; path=/";
+    transports.auth.POST.mockResolvedValueOnce(authenticatedResponse(401));
+    const user = userEvent.setup();
+    renderWithQuery(<SignupForm />);
+
+    await user.type(screen.getByLabelText("邮箱"), "student@example.test");
+    await user.type(screen.getByLabelText("密码"), "strong-password-123");
+    await user.click(screen.getByRole("button", { name: "创建账户" }));
+
+    await waitFor(() => expect(transports.auth.POST).toHaveBeenCalled());
+    expect(transports.auth.GET).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates concurrent authentication initialization", async () => {
+    let resolveConfig: ((result: { response: Response }) => void) | undefined;
+    const configResponse = new Promise<{ response: Response }>((resolve) => {
+      resolveConfig = resolve;
+    });
+    transports.auth.GET.mockReturnValueOnce(configResponse);
+    transports.auth.POST.mockResolvedValue(authenticatedResponse(401));
+    const user = userEvent.setup();
+    renderWithQuery(
+      <>
+        <SignupForm />
+        <PasswordLoginForm />
+      </>,
+    );
+    const [firstEmail, secondEmail] = screen.getAllByLabelText("邮箱");
+    const [firstPassword, secondPassword] = screen.getAllByLabelText("密码", { exact: true });
+    const signupButton = screen.getByRole("button", { name: "创建账户" });
+    const loginButton = screen.getByRole("button", { name: "密码登录" });
+    if (!firstEmail || !firstPassword || !secondEmail || !secondPassword) {
+      throw new Error("Expected signup and login form inputs.");
+    }
+
+    await user.type(firstEmail, "first@example.test");
+    await user.type(firstPassword, "strong-password-123");
+    await user.type(secondEmail, "second@example.test");
+    await user.type(secondPassword, "strong-password-123");
+    await user.click(signupButton);
+    await user.click(loginButton);
+
+    expect(transports.auth.GET).toHaveBeenCalledTimes(1);
+    if (!resolveConfig) throw new Error("Expected authentication initialization to start.");
+    resolveConfig({ response: new Response(null, { status: 200 }) });
+    await waitFor(() => expect(transports.auth.POST).toHaveBeenCalledTimes(2));
   });
 
   it("submits password login and shows a server failure", async () => {
