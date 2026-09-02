@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -374,6 +374,38 @@ class RuleEvidenceUsage(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class GuestSession(models.Model):
+    id: models.UUIDField[UUID, UUID] = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    token_digest: models.CharField[str, str] = models.CharField(
+        max_length=64,
+        unique=True,
+    )
+    expires_at: models.DateTimeField[datetime, datetime] = models.DateTimeField()
+    owner: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="claimed_guest_sessions",
+    )
+    claimed_at: models.DateTimeField[datetime | None, datetime | None] = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    revoked_at: models.DateTimeField[datetime | None, datetime | None] = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class FactSet(models.Model):
     id: models.UUIDField[UUID, UUID] = models.UUIDField(
         primary_key=True,
@@ -387,9 +419,24 @@ class FactSet(models.Model):
         on_delete=models.CASCADE,
         related_name="fact_sets",
     )
+    guest_session: models.ForeignKey[GuestSession | None, GuestSession | None] = (
+        models.ForeignKey(
+            GuestSession,
+            null=True,
+            blank=True,
+            on_delete=models.PROTECT,
+            related_name="fact_sets",
+        )
+    )
     created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(owner__isnull=True) | Q(guest_session__isnull=True),
+                name="advising_fact_set_single_owner_boundary",
+            )
+        ]
         ordering = ["-created_at"]
 
 
@@ -476,5 +523,209 @@ class EligibilityAssessment(models.Model):
             if not all(immutable_values):
                 raise PublishedRevisionImmutableError(
                     "Eligibility assessments are immutable; create a new assessment."
+                )
+        super().save(*args, **kwargs)
+
+
+class ComparisonRun(models.Model):
+    id: models.UUIDField[UUID, UUID] = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    fact_revision: models.ForeignKey[FactSetRevision, FactSetRevision] = models.ForeignKey(
+        FactSetRevision,
+        on_delete=models.PROTECT,
+        related_name="comparison_runs",
+    )
+    manifest: models.ForeignKey[CoverageManifest, CoverageManifest] = models.ForeignKey(
+        CoverageManifest,
+        on_delete=models.PROTECT,
+        related_name="comparison_runs",
+    )
+    selected_offering_ids: models.JSONField[list[str], list[str]] = models.JSONField()
+    owner: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="comparison_runs",
+    )
+    guest_session: models.ForeignKey[GuestSession | None, GuestSession | None] = (
+        models.ForeignKey(
+            GuestSession,
+            null=True,
+            blank=True,
+            on_delete=models.PROTECT,
+            related_name="comparison_runs",
+        )
+    )
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(owner__isnull=False, guest_session__isnull=True)
+                    | Q(owner__isnull=True, guest_session__isnull=False)
+                ),
+                name="advising_comparison_run_exactly_one_owner",
+            )
+        ]
+        ordering = ["-created_at"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self._state.adding:
+            persisted = ComparisonRun.objects.get(pk=self.pk)
+            immutable_values = (
+                persisted.fact_revision == self.fact_revision,
+                persisted.manifest == self.manifest,
+                persisted.selected_offering_ids == self.selected_offering_ids,
+                persisted.owner == self.owner,
+                persisted.guest_session == self.guest_session,
+            )
+            if not all(immutable_values):
+                raise PublishedRevisionImmutableError(
+                    "A comparison run is immutable; create a new run."
+                )
+        super().save(*args, **kwargs)
+
+
+class ComparisonRunResult(models.Model):
+    run: models.ForeignKey[ComparisonRun, ComparisonRun] = models.ForeignKey(
+        ComparisonRun,
+        on_delete=models.PROTECT,
+        related_name="results",
+    )
+    version: models.PositiveIntegerField[int, int] = models.PositiveIntegerField()
+    result: models.JSONField[dict[str, object], dict[str, object]] = models.JSONField()
+    result_hash: models.CharField[str, str] = models.CharField(max_length=64, db_index=True)
+    trigger_publication_event: models.ForeignKey[
+        PublicationEvent | None, PublicationEvent | None
+    ] = models.ForeignKey(
+        PublicationEvent,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="triggered_comparison_results",
+    )
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("run", "version"),
+                name="advising_comparison_result_run_version_unique",
+            )
+        ]
+        ordering = ["run", "-version"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.pk is not None:
+            persisted = ComparisonRunResult.objects.get(pk=self.pk)
+            immutable_values = (
+                persisted.run == self.run,
+                persisted.version == self.version,
+                persisted.result == self.result,
+                persisted.result_hash == self.result_hash,
+                persisted.trigger_publication_event == self.trigger_publication_event,
+            )
+            if not all(immutable_values):
+                raise PublishedRevisionImmutableError(
+                    "Comparison results are immutable; create the next result version."
+                )
+        super().save(*args, **kwargs)
+
+
+class ComparisonAssessmentUsage(models.Model):
+    result: models.ForeignKey[ComparisonRunResult, ComparisonRunResult] = models.ForeignKey(
+        ComparisonRunResult,
+        on_delete=models.PROTECT,
+        related_name="assessment_usages",
+    )
+    assessment: models.ForeignKey[EligibilityAssessment, EligibilityAssessment] = (
+        models.ForeignKey(
+            EligibilityAssessment,
+            on_delete=models.PROTECT,
+            related_name="comparison_usages",
+        )
+    )
+    position: models.PositiveSmallIntegerField[int, int] = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("result", "assessment"),
+                name="advising_comparison_assessment_unique",
+            ),
+            models.UniqueConstraint(
+                fields=("result", "position"),
+                name="advising_comparison_assessment_position_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(position__gt=0),
+                name="advising_comparison_assessment_positive_position",
+            ),
+        ]
+        ordering = ["position"]
+
+
+class DecisionSnapshot(models.Model):
+    class Outcome(models.TextChoices):
+        SHORTLIST_READY = "shortlist_ready", "Shortlist ready"
+        NO_SUITABLE_OFFERING = "no_suitable_offering", "No suitable offering"
+        AWAITING_OFFICIAL_INFORMATION = (
+            "awaiting_official_information",
+            "Awaiting official information",
+        )
+        POSTPONE_APPLICATION = "postpone_application", "Postpone application"
+
+    id: models.UUIDField[UUID, UUID] = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    comparison_result: models.ForeignKey[ComparisonRunResult, ComparisonRunResult] = (
+        models.ForeignKey(
+            ComparisonRunResult,
+            on_delete=models.PROTECT,
+            related_name="decision_snapshots",
+        )
+    )
+    outcome: models.CharField[str, str] = models.CharField(max_length=40, choices=Outcome)
+    retained: models.JSONField[list[str], list[str]] = models.JSONField()
+    excluded: models.JSONField[list[str], list[str]] = models.JSONField()
+    deferred: models.JSONField[list[str], list[str]] = models.JSONField()
+    user_confirmed_reasons: models.JSONField[list[str], list[str]] = models.JSONField(default=list)
+    key_unknowns: models.JSONField[list[str], list[str]] = models.JSONField(default=list)
+    next_actions: models.JSONField[list[str], list[str]] = models.JSONField(default=list)
+    revisit_date: models.DateField[date | None, date | None] = models.DateField(
+        null=True,
+        blank=True,
+    )
+    snapshot_hash: models.CharField[str, str] = models.CharField(max_length=64, db_index=True)
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self._state.adding:
+            persisted = DecisionSnapshot.objects.get(pk=self.pk)
+            immutable_values = (
+                persisted.comparison_result == self.comparison_result,
+                persisted.outcome == self.outcome,
+                persisted.retained == self.retained,
+                persisted.excluded == self.excluded,
+                persisted.deferred == self.deferred,
+                persisted.user_confirmed_reasons == self.user_confirmed_reasons,
+                persisted.key_unknowns == self.key_unknowns,
+                persisted.next_actions == self.next_actions,
+                persisted.revisit_date == self.revisit_date,
+                persisted.snapshot_hash == self.snapshot_hash,
+            )
+            if not all(immutable_values):
+                raise PublishedRevisionImmutableError(
+                    "Decision snapshots are immutable; create a new snapshot."
                 )
         super().save(*args, **kwargs)
