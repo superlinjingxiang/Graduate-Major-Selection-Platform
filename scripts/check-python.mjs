@@ -1,24 +1,37 @@
-import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { resolvePythonRuntime, runPython } from "./python-runtime.mjs";
+import { resolvePythonExecutable, resolvePythonRuntime, runPython } from "./python-runtime.mjs";
 
 const apiRoot = fileURLToPath(new URL("../services/api/", import.meta.url));
-const runtime = resolvePythonRuntime();
-const pythonPath =
-  runtime.prefixArgs.length === 0
-    ? runtime.command
-    : process.platform === "win32"
-      ? "python.exe"
-      : "python";
 
-function run(args, env = process.env) {
-  runPython(args, { cwd: apiRoot, env, runtime });
+export function runPythonChecks(options = {}) {
+  const {
+    platform = process.platform,
+    cwd = apiRoot,
+    env = process.env,
+    spawn = spawnSync,
+  } = options;
+  const runtime = options.runtime ?? resolvePythonRuntime(options);
+  const runOptions = { cwd, env, runtime, spawn };
+  const pythonPath = resolvePythonExecutable({
+    ...runOptions,
+    platform,
+  });
+
+  runPython(["-m", "pytest", "-p", "no:cacheprovider"], runOptions);
+  runPython(["-m", "ruff", "check", "src", "tests"], runOptions);
+  runPython(["-m", "pyright", "--pythonpath", pythonPath, "src", "tests"], runOptions);
+  runPython(["manage.py", "makemigrations", "--check", "--dry-run"], {
+    ...runOptions,
+    env: {
+      ...env,
+      DJANGO_SETTINGS_MODULE: "gradmatch.config.settings_test",
+    },
+  });
 }
 
-run(["-m", "pytest", "-p", "no:cacheprovider"]);
-run(["-m", "ruff", "check", "src", "tests"]);
-run(["-m", "pyright", "--pythonpath", pythonPath, "src", "tests"]);
-run(["manage.py", "makemigrations", "--check", "--dry-run"], {
-  ...process.env,
-  DJANGO_SETTINGS_MODULE: "gradmatch.config.settings_test",
-});
+const entrypoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;
+if (import.meta.url === entrypoint) {
+  runPythonChecks();
+}
