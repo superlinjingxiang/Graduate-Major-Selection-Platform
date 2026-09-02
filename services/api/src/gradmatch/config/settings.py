@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "allauth.headless",
     "allauth.socialaccount",
     "gradmatch.accounts",
+    "gradmatch.catalog",
     "gradmatch.ingestion",
     "gradmatch.system",
 ]

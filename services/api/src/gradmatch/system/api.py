@@ -13,6 +13,7 @@ from redis import Redis
 
 from gradmatch.accounts.authentication import x_session_token_header_auth
 from gradmatch.accounts.models import User
+from gradmatch.catalog.api import router as catalog_router
 
 
 class RedisProbe(Protocol):
@@ -48,6 +49,7 @@ api = NinjaAPI(
     urls_namespace="gradmatch_api_v1",
     openapi_url="/openapi.json",
 )
+api.add_router("", catalog_router)
 
 
 @api.get("/health/live", response=LiveStatusResponse, operation_id="get_liveness")
