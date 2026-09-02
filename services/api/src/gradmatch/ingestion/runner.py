@@ -3,13 +3,12 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Iterable
-from datetime import datetime
 
 from django.db import transaction
 from django.utils import timezone
 
 from .adapters import AdapterRegistry, FetchContext, ParsedItem, default_adapter_registry
-from .models import DataSource, IngestionRun, RawArtifact
+from .models import DataSource, IngestionRun, RawBlob, SourceFetch
 from .storage import ArtifactStore
 
 
@@ -54,22 +53,31 @@ def execute_source(
     )
     try:
         adapter = active_registry.get(source.key)
-        result = adapter.fetch(
-            FetchContext(
-                source_key=source.key,
-                base_url=source.base_url,
-                rate_limit_per_minute=source.rate_limit_per_minute,
+        fetch = SourceFetch.objects.create(
+            source=source,
+            run=run,
+            source_url=source.base_url,
+            requested_at=timezone.now(),
+            status=SourceFetch.Status.PENDING,
+        )
+        try:
+            result = adapter.fetch(
+                FetchContext(
+                    source_key=source.key,
+                    base_url=source.base_url,
+                    rate_limit_per_minute=source.rate_limit_per_minute,
+                )
             )
-        )
-        _persist_artifact(
-            source,
-            run,
-            result.body,
-            result.source_url,
-            result.content_type,
-            result.fetched_at,
-            artifact_store,
-        )
+            fetch.source_url = result.source_url
+            fetch.fetched_at = result.fetched_at
+            fetch.http_status = result.http_status
+            fetch.etag = result.etag
+            fetch.last_modified = result.last_modified
+            blob = _persist_blob(result.body, result.content_type, artifact_store)
+            _mark_fetch_succeeded(fetch, blob)
+        except Exception as error:
+            _mark_fetch_failed(fetch, error)
+            raise
         parsed_items = tuple(adapter.parse(result))
         _mark_succeeded(run, parsed_items)
     except Exception as error:
@@ -78,32 +86,61 @@ def execute_source(
     return run
 
 
-def _persist_artifact(
-    source: DataSource,
-    run: IngestionRun,
+def _persist_blob(
     body: bytes,
-    source_url: str,
     content_type: str,
-    fetched_at: datetime,
     artifact_store: ArtifactStore,
-) -> RawArtifact:
+) -> RawBlob:
     content_hash = hashlib.sha256(body).hexdigest()
     storage_key = f"ingestion/raw/{content_hash[:2]}/{content_hash}.html"
     with transaction.atomic():
-        artifact, created = RawArtifact.objects.get_or_create(
+        blob, created = RawBlob.objects.get_or_create(
             content_hash=content_hash,
             defaults={
-                "source": source,
-                "run": run,
                 "storage_key": storage_key,
-                "source_url": source_url,
+                "byte_size": len(body),
                 "content_type": content_type,
-                "fetched_at": fetched_at,
             },
         )
         if created:
-            artifact_store.put(storage_key, body, content_type)
-    return artifact
+            artifact_store.put(blob.storage_key, body, content_type)
+    return blob
+
+
+def _mark_fetch_succeeded(fetch: SourceFetch, blob: RawBlob) -> None:
+    fetch.status = SourceFetch.Status.SUCCEEDED
+    fetch.blob = blob
+    fetch.error_summary = ""
+    fetch.save(
+        update_fields=(
+            "source_url",
+            "fetched_at",
+            "http_status",
+            "etag",
+            "last_modified",
+            "status",
+            "blob",
+            "error_summary",
+        )
+    )
+
+
+def _mark_fetch_failed(fetch: SourceFetch, error: Exception) -> None:
+    fetch.status = SourceFetch.Status.FAILED
+    fetch.blob = None
+    fetch.error_summary = _sanitize_error(error)
+    fetch.save(
+        update_fields=(
+            "source_url",
+            "fetched_at",
+            "http_status",
+            "etag",
+            "last_modified",
+            "status",
+            "blob",
+            "error_summary",
+        )
+    )
 
 
 def _mark_succeeded(run: IngestionRun, parsed_items: Iterable[ParsedItem]) -> None:

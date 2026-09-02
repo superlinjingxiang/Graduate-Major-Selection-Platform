@@ -58,25 +58,52 @@ class IngestionRun(models.Model):
         return f"{self.source.key}:{self.status}:{self.pk}"
 
 
-class RawArtifact(models.Model):
-    source: models.ForeignKey[DataSource, DataSource] = models.ForeignKey(
-        DataSource, on_delete=models.CASCADE, related_name="raw_artifacts"
-    )
-    run: models.ForeignKey[IngestionRun | None, IngestionRun | None] = models.ForeignKey(
-        IngestionRun,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="raw_artifacts",
-    )
+class RawBlob(models.Model):
     content_hash: models.CharField[str, str] = models.CharField(max_length=64, unique=True)
-    storage_key: models.CharField[str, str] = models.CharField(max_length=512)
-    source_url: models.URLField[str, str] = models.URLField()
-    content_type: models.CharField[str, str] = models.CharField(max_length=255)
-    fetched_at: models.DateTimeField[datetime, datetime] = models.DateTimeField()
+    storage_key: models.CharField[str, str] = models.CharField(max_length=512, unique=True)
+    byte_size: models.PositiveBigIntegerField[int, int] = models.PositiveBigIntegerField()
+    content_type: models.CharField[str, str] = models.CharField(max_length=128, blank=True)
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-id"]
 
     def __str__(self) -> str:
         return self.content_hash
+
+
+class SourceFetch(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    source: models.ForeignKey[DataSource, DataSource] = models.ForeignKey(
+        DataSource, on_delete=models.PROTECT
+    )
+    run: models.ForeignKey[IngestionRun, IngestionRun] = models.ForeignKey(
+        IngestionRun,
+        on_delete=models.CASCADE,
+        related_name="fetches",
+    )
+    source_url: models.URLField[str, str] = models.URLField(max_length=2048)
+    requested_at: models.DateTimeField[datetime, datetime] = models.DateTimeField()
+    fetched_at: models.DateTimeField[datetime | None, datetime | None] = models.DateTimeField(
+        null=True, blank=True
+    )
+    http_status: models.PositiveSmallIntegerField[int | None, int | None] = (
+        models.PositiveSmallIntegerField(null=True, blank=True)
+    )
+    etag: models.CharField[str, str] = models.CharField(max_length=512, blank=True)
+    last_modified: models.CharField[str, str] = models.CharField(max_length=512, blank=True)
+    status: models.CharField[str, str] = models.CharField(max_length=24, choices=Status)
+    blob: models.ForeignKey[RawBlob | None, RawBlob | None] = models.ForeignKey(
+        RawBlob, null=True, on_delete=models.PROTECT
+    )
+    error_summary: models.TextField[str, str] = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-id"]
+
+    def __str__(self) -> str:
+        return f"{self.source.key}:{self.status}:{self.pk}"

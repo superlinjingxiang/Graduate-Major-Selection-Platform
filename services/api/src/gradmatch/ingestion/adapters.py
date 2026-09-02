@@ -24,6 +24,9 @@ class FetchResult:
     source_url: str
     content_type: str
     fetched_at: datetime
+    http_status: int | None = None
+    etag: str = ""
+    last_modified: str = ""
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,9 @@ class HttpxFetcher:
             source_url=str(response.url),
             content_type=content_type,
             fetched_at=timezone.now(),
+            http_status=response.status_code,
+            etag=response.headers.get("etag", ""),
+            last_modified=response.headers.get("last-modified", ""),
         )
 
 
