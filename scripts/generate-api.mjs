@@ -1,7 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { runPython } from "./python-runtime.mjs";
+
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
+const apiRoot = fileURLToPath(new URL("../services/api/", import.meta.url));
 function execute(command, args) {
   return spawnSync(command, args, {
     cwd: workspaceRoot,
@@ -22,17 +25,7 @@ function run(command, args) {
   assertSuccess(execute(command, args));
 }
 
-function runUv(args) {
-  const uvCommand = process.platform === "win32" ? "uv.exe" : "uv";
-  const result = execute(uvCommand, args);
-  if (result.error?.code === "ENOENT") {
-    run("python", ["-m", "uv", ...args]);
-    return;
-  }
-  assertSuccess(result);
-}
-
-runUv(["--directory", "services/api", "run", "python", "scripts/export_openapi.py"]);
+runPython(["scripts/export_openapi.py"], { cwd: apiRoot });
 run(process.execPath, [
   "node_modules/openapi-typescript/bin/cli.js",
   "packages/api-client/openapi/core.openapi.json",

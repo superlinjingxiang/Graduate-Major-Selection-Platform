@@ -12,13 +12,15 @@
     "build": "pnpm exec turbo build",
     "lint": "pnpm exec biome check . --formatter-enabled=false --assist-enabled=false",
     "typecheck": "pnpm exec turbo typecheck",
-    "test": "pnpm exec turbo test",
+    "test": "pnpm exec turbo test && pnpm test:tooling",
+    "test:tooling": "node --test scripts/python-runtime.test.mjs",
     "format:check": "pnpm exec biome check . --linter-enabled=false --assist-enabled=false",
     "generate:api": "node ./scripts/generate-api.mjs",
+    "check:python": "node ./scripts/check-python.mjs",
     "check:api-drift": "node ./scripts/check-api-drift.mjs",
     "check:compose": "node ./scripts/check-compose.mjs",
     "check:ci": "node ./scripts/check-ci.mjs",
-    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm check:api-drift && pnpm check:compose && pnpm check:ci",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm check:python && pnpm build && pnpm check:api-drift && pnpm check:compose && pnpm check:ci",
     "e2e": "pnpm --filter @gradmatch/web exec playwright test"
   },
   "devDependencies": {
