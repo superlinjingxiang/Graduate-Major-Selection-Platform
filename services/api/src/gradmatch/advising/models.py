@@ -372,3 +372,109 @@ class RuleEvidenceUsage(models.Model):
                 "Evidence usages in a published rule set cannot be deleted."
             )
         return super().delete(*args, **kwargs)
+
+
+class FactSet(models.Model):
+    id: models.UUIDField[UUID, UUID] = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    owner: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="fact_sets",
+    )
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class FactSetRevision(models.Model):
+    fact_set: models.ForeignKey[FactSet, FactSet] = models.ForeignKey(
+        FactSet,
+        on_delete=models.CASCADE,
+        related_name="revisions",
+    )
+    version: models.PositiveIntegerField[int, int] = models.PositiveIntegerField()
+    confirmed_facts: models.JSONField[dict[str, object], dict[str, object]] = models.JSONField()
+    input_hash: models.CharField[str, str] = models.CharField(max_length=64)
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("fact_set", "version"),
+                name="advising_fact_set_revision_version_unique",
+            )
+        ]
+        ordering = ["fact_set", "-version"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.pk is not None:
+            persisted = FactSetRevision.objects.get(pk=self.pk)
+            immutable_values = (
+                persisted.fact_set == self.fact_set,
+                persisted.version == self.version,
+                persisted.confirmed_facts == self.confirmed_facts,
+                persisted.input_hash == self.input_hash,
+            )
+            if not all(immutable_values):
+                raise PublishedRevisionImmutableError(
+                    "A fact set revision is immutable; create the next version."
+                )
+        super().save(*args, **kwargs)
+
+
+class EligibilityAssessment(models.Model):
+    class Status(models.TextChoices):
+        ELIGIBLE_KNOWN = "eligible_known", "Eligible known"
+        INELIGIBLE_KNOWN = "ineligible_known", "Ineligible known"
+        NEEDS_CONFIRMATION = "needs_confirmation", "Needs confirmation"
+
+    offering: models.ForeignKey[AnnualOffering, AnnualOffering] = models.ForeignKey(
+        AnnualOffering,
+        on_delete=models.PROTECT,
+        related_name="eligibility_assessments",
+    )
+    fact_revision: models.ForeignKey[FactSetRevision, FactSetRevision] = models.ForeignKey(
+        FactSetRevision,
+        on_delete=models.PROTECT,
+        related_name="eligibility_assessments",
+    )
+    rule_set: models.ForeignKey[RuleSetRevision | None, RuleSetRevision | None] = (
+        models.ForeignKey(
+            RuleSetRevision,
+            null=True,
+            blank=True,
+            on_delete=models.PROTECT,
+            related_name="eligibility_assessments",
+        )
+    )
+    status: models.CharField[str, str] = models.CharField(max_length=32, choices=Status)
+    reasons: models.JSONField[list[dict[str, object]], list[dict[str, object]]] = models.JSONField()
+    input_hash: models.CharField[str, str] = models.CharField(max_length=64, db_index=True)
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.pk is not None:
+            persisted = EligibilityAssessment.objects.get(pk=self.pk)
+            immutable_values = (
+                persisted.offering == self.offering,
+                persisted.fact_revision == self.fact_revision,
+                persisted.rule_set == self.rule_set,
+                persisted.status == self.status,
+                persisted.reasons == self.reasons,
+                persisted.input_hash == self.input_hash,
+            )
+            if not all(immutable_values):
+                raise PublishedRevisionImmutableError(
+                    "Eligibility assessments are immutable; create a new assessment."
+                )
+        super().save(*args, **kwargs)

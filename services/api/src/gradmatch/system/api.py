@@ -13,6 +13,7 @@ from redis import Redis
 
 from gradmatch.accounts.authentication import x_session_token_header_auth
 from gradmatch.accounts.models import User
+from gradmatch.advising.api import router as advising_router
 from gradmatch.catalog.api import router as catalog_router
 
 
@@ -50,6 +51,7 @@ api = NinjaAPI(
     openapi_url="/openapi.json",
 )
 api.add_router("", catalog_router)
+api.add_router("", advising_router)
 
 
 @api.get("/health/live", response=LiveStatusResponse, operation_id="get_liveness")
