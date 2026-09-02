@@ -14,6 +14,13 @@
     "build": "tsc -p tsconfig.json",
     "lint": "pnpm exec biome check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node ../../scripts/noop-workspace-test.mjs packages/domain"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gradmatch/api-client": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }

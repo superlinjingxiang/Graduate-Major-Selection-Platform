@@ -4,6 +4,159 @@
  */
 
 export interface paths {
+    "/api/v1/comparison-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Comparison */
+        post: operations["create_comparison_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/comparison-runs/{comparison_run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Comparison */
+        get: operations["get_comparison_run"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Correction */
+        post: operations["create_correction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/corrections/{correction_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Correction */
+        get: operations["get_correction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/decision-snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Snapshot */
+        post: operations["create_decision_snapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/decision-snapshots/{snapshot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Snapshot */
+        get: operations["get_decision_snapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/decision-snapshots/{snapshot_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Snapshot */
+        post: operations["claim_decision_snapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/eligibility-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Eligibility Assessment */
+        post: operations["create_eligibility_assessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fact-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Fact Set */
+        post: operations["create_fact_set"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/live": {
         parameters: {
             query?: never;
@@ -72,16 +225,263 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/offerings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Offerings */
+        get: operations["list_offerings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offerings/{offering_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Offering */
+        get: operations["get_offering"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pilot-scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Pilot Scope */
+        get: operations["get_pilot_scope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/taxonomy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Taxonomy */
+        get: operations["get_taxonomy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ComparisonRunCreateRequest */
+        ComparisonRunCreateRequest: {
+            /** Fact Revision */
+            fact_revision: number;
+            /**
+             * Fact Set Id
+             * Format: uuid
+             */
+            fact_set_id: string;
+            /** Offering Ids */
+            offering_ids?: string[] | null;
+        };
+        /** ComparisonRunResponse */
+        ComparisonRunResponse: {
+            /** Assessments */
+            assessments: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Comparison Run Id
+             * Format: uuid
+             */
+            comparison_run_id: string;
+            /** Groups */
+            groups: {
+                [key: string]: string[];
+            };
+            /** Manifest Key */
+            manifest_key: string;
+            /** Order */
+            order: string[];
+            /** Result Hash */
+            result_hash: string;
+            /** Result Version */
+            result_version: number;
+        };
+        /** CorrectionCreateRequest */
+        CorrectionCreateRequest: {
+            /** Explanation */
+            explanation: string;
+            /** Field Key */
+            field_key: string;
+            /** Offering Id */
+            offering_id: string;
+            /**
+             * Proposed Source Url
+             * Format: uri
+             */
+            proposed_source_url: string;
+        };
+        /** CorrectionResponse */
+        CorrectionResponse: {
+            /**
+             * Correction Id
+             * Format: uuid
+             */
+            correction_id: string;
+            /** Explanation */
+            explanation: string;
+            /** Field Key */
+            field_key: string;
+            /** Offering Id */
+            offering_id: string;
+            /** Proposed Source Url */
+            proposed_source_url: string;
+            /** Status */
+            status: string;
+        };
         /** CurrentUserResponse */
         CurrentUserResponse: {
             /** Email */
             email: string;
             /** Id */
             id: number;
+        };
+        /** DecisionSnapshotCreateRequest */
+        DecisionSnapshotCreateRequest: {
+            /**
+             * Comparison Run Id
+             * Format: uuid
+             */
+            comparison_run_id: string;
+            /** Requested Outcome */
+            requested_outcome?: string | null;
+        };
+        /** DecisionSnapshotResponse */
+        DecisionSnapshotResponse: {
+            /** Comparison Result Hash */
+            comparison_result_hash: string;
+            /** Comparison Result Version */
+            comparison_result_version: number;
+            /**
+             * Comparison Run Id
+             * Format: uuid
+             */
+            comparison_run_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Deferred */
+            deferred: string[];
+            /** Excluded */
+            excluded: string[];
+            /** Key Unknowns */
+            key_unknowns: string[];
+            /** Next Actions */
+            next_actions: string[];
+            /** Outcome */
+            outcome: string;
+            /** Retained */
+            retained: string[];
+            /** Revisit Date */
+            revisit_date: string | null;
+            /** Snapshot Hash */
+            snapshot_hash: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /** User Confirmed Reasons */
+            user_confirmed_reasons: string[];
+        };
+        /** EligibilityAssessmentRequest */
+        EligibilityAssessmentRequest: {
+            /** Fact Revision */
+            fact_revision: number;
+            /**
+             * Fact Set Id
+             * Format: uuid
+             */
+            fact_set_id: string;
+            /** Offering Id */
+            offering_id: string;
+        };
+        /** EligibilityAssessmentResponse */
+        EligibilityAssessmentResponse: {
+            /** Assessment Id */
+            assessment_id: number;
+            /** Fact Revision */
+            fact_revision: number;
+            /**
+             * Fact Set Id
+             * Format: uuid
+             */
+            fact_set_id: string;
+            /** Input Hash */
+            input_hash: string;
+            /** Offering Id */
+            offering_id: string;
+            /** Reasons */
+            reasons: {
+                [key: string]: unknown;
+            }[];
+            /** Rule Set Key */
+            rule_set_key: string | null;
+            /** Rule Set Revision */
+            rule_set_revision: number | null;
+            /** Status */
+            status: string;
+        };
+        /** FactSetCreateRequest */
+        FactSetCreateRequest: {
+            /** Confirmed Facts */
+            confirmed_facts: {
+                [key: string]: unknown;
+            };
+        };
+        /** FactSetResponse */
+        FactSetResponse: {
+            /** Confirmed Facts */
+            confirmed_facts: {
+                [key: string]: unknown;
+            };
+            /**
+             * Fact Set Id
+             * Format: uuid
+             */
+            fact_set_id: string;
+            /** Input Hash */
+            input_hash: string;
+            /** Version */
+            version: number;
         };
         /** LiveStatusResponse */
         LiveStatusResponse: {
@@ -100,6 +500,64 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** OfferingListResponse */
+        OfferingListResponse: {
+            /** Count */
+            count: number;
+            /** Items */
+            items: components["schemas"]["OfferingResponse"][];
+            /** Manifest Key */
+            manifest_key: string;
+        };
+        /** OfferingResponse */
+        OfferingResponse: {
+            /** Admission Pathway */
+            admission_pathway: string;
+            /** Degree Type */
+            degree_type: string;
+            /** Id */
+            id: string;
+            /** Institution Key */
+            institution_key: string;
+            /** Institution Name */
+            institution_name: string;
+            /** Program Code */
+            program_code: string;
+            /** Publication Status */
+            publication_status: string;
+            /** Study Mode */
+            study_mode: string;
+            /** Target Year */
+            target_year: number;
+            /** Title */
+            title: string;
+        };
+        /** PilotScopeResponse */
+        PilotScopeResponse: {
+            /** Admission Pathway */
+            admission_pathway: string;
+            /** Decision Stage */
+            decision_stage: string;
+            /** Discipline */
+            discipline: string;
+            /**
+             * Frozen At
+             * Format: date-time
+             */
+            frozen_at: string;
+            /** Key */
+            key: string;
+            /** Offering Count */
+            offering_count: number;
+            /** Region */
+            region: string;
+            /** Study Mode */
+            study_mode: string;
+            /** Target Year */
+            target_year: number;
+            /** Version */
+            version: number;
+        };
         /** ReadinessResponse */
         ReadinessResponse: {
             /** Checks */
@@ -112,6 +570,30 @@ export interface components {
              */
             status: "ok" | "error";
         };
+        /** TaxonomyNodeResponse */
+        TaxonomyNodeResponse: {
+            /** Code */
+            code: string;
+            /** Level Type */
+            level_type: string;
+            /** Name */
+            name: string;
+            /** Parent Code */
+            parent_code: string | null;
+        };
+        /** TaxonomyResponse */
+        TaxonomyResponse: {
+            /** Nodes */
+            nodes: components["schemas"]["TaxonomyNodeResponse"][];
+            revision: components["schemas"]["TaxonomyRevisionResponse"];
+        };
+        /** TaxonomyRevisionResponse */
+        TaxonomyRevisionResponse: {
+            /** Effective Year */
+            effective_year: number;
+            /** Key */
+            key: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -121,6 +603,214 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    create_comparison_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonRunCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonRunResponse"];
+                };
+            };
+        };
+    };
+    get_comparison_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comparison_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonRunResponse"];
+                };
+            };
+        };
+    };
+    create_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionResponse"];
+                };
+            };
+        };
+    };
+    get_correction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                correction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionResponse"];
+                };
+            };
+        };
+    };
+    create_decision_snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionSnapshotCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionSnapshotResponse"];
+                };
+            };
+        };
+    };
+    get_decision_snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionSnapshotResponse"];
+                };
+            };
+        };
+    };
+    claim_decision_snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionSnapshotResponse"];
+                };
+            };
+        };
+    };
+    create_eligibility_assessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EligibilityAssessmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibilityAssessmentResponse"];
+                };
+            };
+        };
+    };
+    create_fact_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactSetCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactSetResponse"];
+                };
+            };
+        };
+    };
     get_liveness: {
         parameters: {
             query?: never;
@@ -206,6 +896,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+        };
+    };
+    list_offerings: {
+        parameters: {
+            query?: {
+                institution?: string | null;
+                degree_type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferingListResponse"];
+                };
+            };
+        };
+    };
+    get_offering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                offering_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferingResponse"];
+                };
+            };
+        };
+    };
+    get_pilot_scope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotScopeResponse"];
+                };
+            };
+        };
+    };
+    get_taxonomy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxonomyResponse"];
                 };
             };
         };

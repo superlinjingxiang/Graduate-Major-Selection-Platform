@@ -1,6 +1,172 @@
 {
   "components": {
     "schemas": {
+      "ComparisonRunCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "fact_revision": {
+            "title": "Fact Revision",
+            "type": "integer"
+          },
+          "fact_set_id": {
+            "format": "uuid",
+            "title": "Fact Set Id",
+            "type": "string"
+          },
+          "offering_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offering Ids"
+          }
+        },
+        "required": [
+          "fact_set_id",
+          "fact_revision"
+        ],
+        "title": "ComparisonRunCreateRequest",
+        "type": "object"
+      },
+      "ComparisonRunResponse": {
+        "properties": {
+          "assessments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Assessments",
+            "type": "array"
+          },
+          "comparison_run_id": {
+            "format": "uuid",
+            "title": "Comparison Run Id",
+            "type": "string"
+          },
+          "groups": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Groups",
+            "type": "object"
+          },
+          "manifest_key": {
+            "title": "Manifest Key",
+            "type": "string"
+          },
+          "order": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Order",
+            "type": "array"
+          },
+          "result_hash": {
+            "title": "Result Hash",
+            "type": "string"
+          },
+          "result_version": {
+            "title": "Result Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "comparison_run_id",
+          "result_version",
+          "result_hash",
+          "manifest_key",
+          "order",
+          "groups",
+          "assessments"
+        ],
+        "title": "ComparisonRunResponse",
+        "type": "object"
+      },
+      "CorrectionCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "explanation": {
+            "maxLength": 4000,
+            "minLength": 10,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "field_key": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Field Key",
+            "type": "string"
+          },
+          "offering_id": {
+            "title": "Offering Id",
+            "type": "string"
+          },
+          "proposed_source_url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "Proposed Source Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "offering_id",
+          "field_key",
+          "proposed_source_url",
+          "explanation"
+        ],
+        "title": "CorrectionCreateRequest",
+        "type": "object"
+      },
+      "CorrectionResponse": {
+        "properties": {
+          "correction_id": {
+            "format": "uuid",
+            "title": "Correction Id",
+            "type": "string"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "field_key": {
+            "title": "Field Key",
+            "type": "string"
+          },
+          "offering_id": {
+            "title": "Offering Id",
+            "type": "string"
+          },
+          "proposed_source_url": {
+            "title": "Proposed Source Url",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction_id",
+          "offering_id",
+          "field_key",
+          "proposed_source_url",
+          "explanation",
+          "status"
+        ],
+        "title": "CorrectionResponse",
+        "type": "object"
+      },
       "CurrentUserResponse": {
         "properties": {
           "email": {
@@ -17,6 +183,281 @@
           "email"
         ],
         "title": "CurrentUserResponse",
+        "type": "object"
+      },
+      "DecisionSnapshotCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "comparison_run_id": {
+            "format": "uuid",
+            "title": "Comparison Run Id",
+            "type": "string"
+          },
+          "requested_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Outcome"
+          }
+        },
+        "required": [
+          "comparison_run_id"
+        ],
+        "title": "DecisionSnapshotCreateRequest",
+        "type": "object"
+      },
+      "DecisionSnapshotResponse": {
+        "properties": {
+          "comparison_result_hash": {
+            "title": "Comparison Result Hash",
+            "type": "string"
+          },
+          "comparison_result_version": {
+            "title": "Comparison Result Version",
+            "type": "integer"
+          },
+          "comparison_run_id": {
+            "format": "uuid",
+            "title": "Comparison Run Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deferred": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Deferred",
+            "type": "array"
+          },
+          "excluded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded",
+            "type": "array"
+          },
+          "key_unknowns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Unknowns",
+            "type": "array"
+          },
+          "next_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Next Actions",
+            "type": "array"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "retained": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Retained",
+            "type": "array"
+          },
+          "revisit_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisit Date"
+          },
+          "snapshot_hash": {
+            "title": "Snapshot Hash",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "user_confirmed_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "User Confirmed Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "comparison_run_id",
+          "comparison_result_version",
+          "comparison_result_hash",
+          "outcome",
+          "retained",
+          "excluded",
+          "deferred",
+          "user_confirmed_reasons",
+          "key_unknowns",
+          "next_actions",
+          "revisit_date",
+          "snapshot_hash",
+          "created_at"
+        ],
+        "title": "DecisionSnapshotResponse",
+        "type": "object"
+      },
+      "EligibilityAssessmentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "fact_revision": {
+            "title": "Fact Revision",
+            "type": "integer"
+          },
+          "fact_set_id": {
+            "format": "uuid",
+            "title": "Fact Set Id",
+            "type": "string"
+          },
+          "offering_id": {
+            "title": "Offering Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "offering_id",
+          "fact_set_id",
+          "fact_revision"
+        ],
+        "title": "EligibilityAssessmentRequest",
+        "type": "object"
+      },
+      "EligibilityAssessmentResponse": {
+        "properties": {
+          "assessment_id": {
+            "title": "Assessment Id",
+            "type": "integer"
+          },
+          "fact_revision": {
+            "title": "Fact Revision",
+            "type": "integer"
+          },
+          "fact_set_id": {
+            "format": "uuid",
+            "title": "Fact Set Id",
+            "type": "string"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "offering_id": {
+            "title": "Offering Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "rule_set_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Set Key"
+          },
+          "rule_set_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Set Revision"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assessment_id",
+          "offering_id",
+          "fact_set_id",
+          "fact_revision",
+          "rule_set_key",
+          "rule_set_revision",
+          "status",
+          "reasons",
+          "input_hash"
+        ],
+        "title": "EligibilityAssessmentResponse",
+        "type": "object"
+      },
+      "FactSetCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_facts": {
+            "additionalProperties": true,
+            "title": "Confirmed Facts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "confirmed_facts"
+        ],
+        "title": "FactSetCreateRequest",
+        "type": "object"
+      },
+      "FactSetResponse": {
+        "properties": {
+          "confirmed_facts": {
+            "additionalProperties": true,
+            "title": "Confirmed Facts",
+            "type": "object"
+          },
+          "fact_set_id": {
+            "format": "uuid",
+            "title": "Fact Set Id",
+            "type": "string"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fact_set_id",
+          "version",
+          "confirmed_facts",
+          "input_hash"
+        ],
+        "title": "FactSetResponse",
         "type": "object"
       },
       "LiveStatusResponse": {
@@ -56,6 +497,149 @@
         "title": "MetaResponse",
         "type": "object"
       },
+      "OfferingListResponse": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OfferingResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "manifest_key": {
+            "title": "Manifest Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manifest_key",
+          "count",
+          "items"
+        ],
+        "title": "OfferingListResponse",
+        "type": "object"
+      },
+      "OfferingResponse": {
+        "properties": {
+          "admission_pathway": {
+            "title": "Admission Pathway",
+            "type": "string"
+          },
+          "degree_type": {
+            "title": "Degree Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "institution_key": {
+            "title": "Institution Key",
+            "type": "string"
+          },
+          "institution_name": {
+            "title": "Institution Name",
+            "type": "string"
+          },
+          "program_code": {
+            "title": "Program Code",
+            "type": "string"
+          },
+          "publication_status": {
+            "title": "Publication Status",
+            "type": "string"
+          },
+          "study_mode": {
+            "title": "Study Mode",
+            "type": "string"
+          },
+          "target_year": {
+            "title": "Target Year",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "target_year",
+          "institution_key",
+          "institution_name",
+          "program_code",
+          "title",
+          "degree_type",
+          "study_mode",
+          "admission_pathway",
+          "publication_status"
+        ],
+        "title": "OfferingResponse",
+        "type": "object"
+      },
+      "PilotScopeResponse": {
+        "properties": {
+          "admission_pathway": {
+            "title": "Admission Pathway",
+            "type": "string"
+          },
+          "decision_stage": {
+            "title": "Decision Stage",
+            "type": "string"
+          },
+          "discipline": {
+            "title": "Discipline",
+            "type": "string"
+          },
+          "frozen_at": {
+            "format": "date-time",
+            "title": "Frozen At",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "offering_count": {
+            "title": "Offering Count",
+            "type": "integer"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "study_mode": {
+            "title": "Study Mode",
+            "type": "string"
+          },
+          "target_year": {
+            "title": "Target Year",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "version",
+          "target_year",
+          "region",
+          "study_mode",
+          "admission_pathway",
+          "discipline",
+          "decision_stage",
+          "offering_count",
+          "frozen_at"
+        ],
+        "title": "PilotScopeResponse",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "properties": {
           "checks": {
@@ -84,6 +668,79 @@
         ],
         "title": "ReadinessResponse",
         "type": "object"
+      },
+      "TaxonomyNodeResponse": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "level_type": {
+            "title": "Level Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "level_type",
+          "parent_code"
+        ],
+        "title": "TaxonomyNodeResponse",
+        "type": "object"
+      },
+      "TaxonomyResponse": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/TaxonomyNodeResponse"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/TaxonomyRevisionResponse"
+          }
+        },
+        "required": [
+          "revision",
+          "nodes"
+        ],
+        "title": "TaxonomyResponse",
+        "type": "object"
+      },
+      "TaxonomyRevisionResponse": {
+        "properties": {
+          "effective_year": {
+            "title": "Effective Year",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "effective_year"
+        ],
+        "title": "TaxonomyRevisionResponse",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -106,6 +763,306 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/comparison-runs": {
+      "post": {
+        "operationId": "create_comparison_run",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonRunCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonRunResponse"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Create Comparison",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
+    "/api/v1/comparison-runs/{comparison_run_id}": {
+      "get": {
+        "operationId": "get_comparison_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "comparison_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Comparison Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonRunResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Comparison",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
+    "/api/v1/corrections": {
+      "post": {
+        "operationId": "create_correction",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionResponse"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Create Correction",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/api/v1/corrections/{correction_id}": {
+      "get": {
+        "operationId": "get_correction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "correction_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Correction Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Correction",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/api/v1/decision-snapshots": {
+      "post": {
+        "operationId": "create_decision_snapshot",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionSnapshotCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionSnapshotResponse"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Create Snapshot",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
+    "/api/v1/decision-snapshots/{snapshot_id}": {
+      "get": {
+        "operationId": "get_decision_snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionSnapshotResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Snapshot",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
+    "/api/v1/decision-snapshots/{snapshot_id}/claim": {
+      "post": {
+        "operationId": "claim_decision_snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionSnapshotResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "SessionAuth": []
+          },
+          {
+            "XSessionTokenHeaderAuth": []
+          }
+        ],
+        "summary": "Claim Snapshot",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
+    "/api/v1/eligibility-assessments": {
+      "post": {
+        "operationId": "create_eligibility_assessment",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EligibilityAssessmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EligibilityAssessmentResponse"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Create Eligibility Assessment",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
+    "/api/v1/fact-sets": {
+      "post": {
+        "operationId": "create_fact_set",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactSetCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactSetResponse"
+                }
+              }
+            },
+            "description": "Created"
+          }
+        },
+        "summary": "Create Fact Set",
+        "tags": [
+          "advising"
+        ]
+      }
+    },
     "/api/v1/health/live": {
       "get": {
         "operationId": "get_liveness",
@@ -198,6 +1155,137 @@
           }
         },
         "summary": "Meta"
+      }
+    },
+    "/api/v1/offerings": {
+      "get": {
+        "operationId": "list_offerings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "institution",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Institution"
+            }
+          },
+          {
+            "in": "query",
+            "name": "degree_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Degree Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferingListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List Offerings",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/offerings/{offering_id}": {
+      "get": {
+        "operationId": "get_offering",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "offering_id",
+            "required": true,
+            "schema": {
+              "title": "Offering Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferingResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Offering",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/pilot-scope": {
+      "get": {
+        "operationId": "get_pilot_scope",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PilotScopeResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Pilot Scope",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/taxonomy": {
+      "get": {
+        "operationId": "get_taxonomy",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get Taxonomy",
+        "tags": [
+          "catalog"
+        ]
       }
     }
   },

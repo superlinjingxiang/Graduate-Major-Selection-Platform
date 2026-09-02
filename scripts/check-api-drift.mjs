@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
+const safeWorkspaceRoot = workspaceRoot.replaceAll("\\", "/").replace(/\/$/u, "");
 function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: workspaceRoot,
@@ -18,6 +19,8 @@ function run(command, args) {
 
 run(process.execPath, ["scripts/generate-api.mjs"]);
 run("git", [
+  "-c",
+  `safe.directory=${safeWorkspaceRoot}`,
   "diff",
   "--exit-code",
   "--",
