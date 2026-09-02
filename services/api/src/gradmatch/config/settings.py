@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "gradmatch.advising",
     "gradmatch.catalog",
     "gradmatch.ingestion",
+    "gradmatch.support",
     "gradmatch.system",
 ]
 

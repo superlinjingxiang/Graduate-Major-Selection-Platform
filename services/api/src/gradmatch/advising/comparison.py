@@ -17,8 +17,10 @@ from .models import (
     ComparisonRun,
     ComparisonRunResult,
     DecisionSnapshot,
+    EligibilityAssessment,
     FactSetRevision,
     GuestSession,
+    PublicationEvent,
 )
 
 
@@ -30,12 +32,71 @@ def create_comparison_run(
     owner: User | None = None,
     guest_session: GuestSession | None = None,
 ) -> ComparisonRunResult:
-    requested_ids = set(offering_ids)
-    if not requested_ids or not requested_ids.issubset(ENGINEERING_SLICE_OFFERING_IDS):
-        raise ValueError("Comparison offerings must stay inside the frozen engineering slice.")
+    requested_ids = _validate_offering_ids(offering_ids)
     if (owner is None) == (guest_session is None):
         raise ValueError("A comparison requires exactly one account or guest owner.")
 
+    entries = _load_manifest_entries(requested_ids)
+    result, assessments = _build_comparison_result(
+        fact_revision=fact_revision,
+        entries=entries,
+    )
+    run = ComparisonRun.objects.create(
+        fact_revision=fact_revision,
+        manifest=entries[0].manifest,
+        selected_offering_ids=result["order"],
+        owner=owner,
+        guest_session=guest_session,
+    )
+    return _persist_result(
+        run=run,
+        version=1,
+        result=result,
+        assessments=assessments,
+        trigger_publication_event=None,
+    )
+
+
+@transaction.atomic
+def recompute_comparison_run(
+    *,
+    run: ComparisonRun,
+    trigger_publication_event: PublicationEvent,
+) -> tuple[ComparisonRunResult, bool]:
+    locked_run = ComparisonRun.objects.select_for_update().get(pk=run.pk)
+    existing = ComparisonRunResult.objects.filter(
+        run=locked_run,
+        trigger_publication_event=trigger_publication_event,
+    ).first()
+    if existing is not None:
+        return existing, False
+
+    requested_ids = _validate_offering_ids(locked_run.selected_offering_ids)
+    entries = _load_manifest_entries(requested_ids)
+    result, assessments = _build_comparison_result(
+        fact_revision=locked_run.fact_revision,
+        entries=entries,
+    )
+    latest = ComparisonRunResult.objects.filter(run=locked_run).order_by("-version").first()
+    next_version = 1 if latest is None else latest.version + 1
+    recomputed = _persist_result(
+        run=locked_run,
+        version=next_version,
+        result=result,
+        assessments=assessments,
+        trigger_publication_event=trigger_publication_event,
+    )
+    return recomputed, True
+
+
+def _validate_offering_ids(offering_ids: Iterable[str]) -> set[str]:
+    requested_ids = set(offering_ids)
+    if not requested_ids or not requested_ids.issubset(ENGINEERING_SLICE_OFFERING_IDS):
+        raise ValueError("Comparison offerings must stay inside the frozen engineering slice.")
+    return requested_ids
+
+
+def _load_manifest_entries(requested_ids: set[str]) -> list[ManifestEntry]:
     entries = list(
         ManifestEntry.objects.filter(
             manifest__key=PILOT_MANIFEST_KEY,
@@ -45,10 +106,17 @@ def create_comparison_run(
         .select_related("manifest", "offering")
         .order_by("position")
     )
-    ordered_offerings = [entry.offering for entry in entries]
-    if {offering.pk for offering in ordered_offerings} != requested_ids:
+    if {entry.offering.pk for entry in entries} != requested_ids:
         raise ValueError("One or more offerings are outside the frozen engineering slice.")
+    return entries
 
+
+def _build_comparison_result(
+    *,
+    fact_revision: FactSetRevision,
+    entries: list[ManifestEntry],
+) -> tuple[dict[str, object], list[EligibilityAssessment]]:
+    ordered_offerings = [entry.offering for entry in entries]
     assessments = [
         assess_eligibility(offering=offering, fact_revision=fact_revision)
         for offering in ordered_offerings
@@ -70,26 +138,31 @@ def create_comparison_run(
                 "input_hash": assessment.input_hash,
             }
         )
-
-    result: dict[str, object] = {
-        "manifest_key": entries[0].manifest.key,
-        "order": [offering.pk for offering in ordered_offerings],
-        "groups": groups,
-        "assessments": serialized_assessments,
-    }
-    result_hash = _canonical_hash(_semantic_result(result))
-    run = ComparisonRun.objects.create(
-        fact_revision=fact_revision,
-        manifest=entries[0].manifest,
-        selected_offering_ids=result["order"],
-        owner=owner,
-        guest_session=guest_session,
+    return (
+        {
+            "manifest_key": entries[0].manifest.key,
+            "order": [offering.pk for offering in ordered_offerings],
+            "groups": groups,
+            "assessments": serialized_assessments,
+        },
+        assessments,
     )
+
+
+def _persist_result(
+    *,
+    run: ComparisonRun,
+    version: int,
+    result: dict[str, object],
+    assessments: list[EligibilityAssessment],
+    trigger_publication_event: PublicationEvent | None,
+) -> ComparisonRunResult:
     comparison_result = ComparisonRunResult.objects.create(
         run=run,
-        version=1,
+        version=version,
         result=result,
-        result_hash=result_hash,
+        result_hash=_canonical_hash(_semantic_result(result)),
+        trigger_publication_event=trigger_publication_event,
     )
     ComparisonAssessmentUsage.objects.bulk_create(
         [
