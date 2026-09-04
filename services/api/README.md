@@ -1,3 +1,3 @@
-# GradMatch API
+# GradMatch API 服务
 
-Task 1 creates the Python project foundation only. Django integration starts in Task 2.
+初始实施计划的任务 1 仅建立 Python 项目基础，Django 集成从任务 2 开始。

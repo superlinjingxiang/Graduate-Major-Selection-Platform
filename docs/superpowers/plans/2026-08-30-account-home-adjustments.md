@@ -1,16 +1,16 @@
-# Account and Homepage Adjustments Implementation Plan
+# 账户与首页调整实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **致执行代理：** 必需的子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐项任务实施本计划。步骤使用复选框（`- [ ]`）语法跟踪。
 
-**Goal:** Make password registration easier to use and keep internal platform health information off the public homepage.
+**目标：** 提升密码注册的易用性，并使公开首页不再展示平台内部健康信息。
 
-**Architecture:** Django remains the authoritative password-policy layer through its standard password validator, while the React form mirrors the same minimum length before it submits. The existing client-side form gets a small, accessible password-visibility control; the public home route stops loading and rendering status presentation while the health endpoints remain available to infrastructure.
+**架构：** Django 继续通过其标准密码验证器作为密码策略的权威层，React 表单则在提交前执行相同的最小长度校验。在现有客户端表单中加入一个小型、支持无障碍访问的密码可见性控件；公开首页路由停止加载和渲染状态展示内容，健康检查端点仍供基础设施使用。
 
-**Tech Stack:** Django 5.2, django-allauth Headless, Next.js App Router, React 19, React Hook Form, Zod, Vitest, Testing Library, Playwright.
+**技术栈：** Django 5.2、django-allauth Headless、Next.js App Router、React 19、React Hook Form、Zod、Vitest、Testing Library、Playwright。
 
-**Spec:** `docs/product-requirements.md`
+**规格说明：** `docs/product-requirements.md`
 
-## Global Constraints
+## 全局约束
 
 - 注册和密码登录流程的最低密码长度统一为 8 个字符。
 - 注册密码默认隐藏；按钮只切换显示状态，不清空内容或改变输入焦点。
@@ -20,21 +20,21 @@
 
 ---
 
-### Task 1: Enforce the eight-character password policy on the API
+### 任务 1：在 API 中执行八字符密码策略
 
-**Files:**
+**文件：**
 
-- Modify: `services/api/src/gradmatch/config/settings.py`
-- Modify: `services/api/tests/test_authentication.py`
+- 修改：`services/api/src/gradmatch/config/settings.py`
+- 修改：`services/api/tests/test_authentication.py`
 
-**Interfaces:**
+**接口：**
 
-- Consumes: django-allauth browser signup endpoint at `/_allauth/browser/v1/auth/signup`.
-- Produces: Django `AUTH_PASSWORD_VALIDATORS` with `MinimumLengthValidator` configured as `min_length: 8`.
+- 使用：位于 `/_allauth/browser/v1/auth/signup` 的 django-allauth 浏览器注册端点。
+- 产出：Django `AUTH_PASSWORD_VALIDATORS`，其中 `MinimumLengthValidator` 配置为 `min_length: 8`。
 
-- [ ] **Step 1: Write the failing API-policy tests**
+- [ ] **步骤 1：编写预期失败的 API 策略测试**
 
-  Add these tests near the existing signup coverage:
+  在现有注册测试附近添加以下测试：
 
   ```python
   def test_password_policy_requires_at_least_eight_characters() -> None:
@@ -58,19 +58,19 @@
       assert "8" in str(response.json())
   ```
 
-- [ ] **Step 2: Run the two tests and verify RED**
+- [ ] **步骤 2：运行这两个测试并确认失败**
 
-  Run:
+  运行：
 
   ```powershell
   python -m uv --directory services/api run pytest tests/test_authentication.py -k "password_policy_requires or shorter_than_eight" -v
   ```
 
-  Expected: the policy assertion fails because no password validators are configured; the seven-character signup is not rejected by the server.
+  预期：由于未配置密码验证器，策略断言失败；服务器未拒绝使用七字符密码的注册请求。
 
-- [ ] **Step 3: Configure the minimal Django validator**
+- [ ] **步骤 3：配置最小的 Django 验证器**
 
-  Add this setting directly after the allauth account configuration in `settings.py`:
+  在 `settings.py` 中的 allauth 账户配置后紧接着添加以下设置：
 
   ```python
   AUTH_PASSWORD_VALIDATORS = [
@@ -81,43 +81,43 @@
   ]
   ```
 
-- [ ] **Step 4: Run the targeted API tests and verify GREEN**
+- [ ] **步骤 4：运行针对性的 API 测试并确认通过**
 
-  Run the Step 2 command. Expected: both tests pass.
+  运行步骤 2 中的命令。预期：两个测试均通过。
 
-- [ ] **Step 5: Run the complete authentication test module**
+- [ ] **步骤 5：运行完整的认证测试模块**
 
-  Run:
+  运行：
 
   ```powershell
   python -m uv --directory services/api run pytest tests/test_authentication.py -v
   ```
 
-  Expected: all authentication tests pass.
+  预期：所有认证测试均通过。
 
-- [ ] **Step 6: Commit the API policy change**
+- [ ] **步骤 6：提交 API 策略变更**
 
   ```powershell
   git add services/api/src/gradmatch/config/settings.py services/api/tests/test_authentication.py
   git commit -m "feat: relax password policy to eight characters"
   ```
 
-### Task 2: Add the accessible registration password-visibility control
+### 任务 2：添加支持无障碍访问的注册密码可见性控件
 
-**Files:**
+**文件：**
 
-- Modify: `apps/web/src/features/auth/auth-forms.tsx`
-- Modify: `apps/web/src/features/auth/auth-forms.test.tsx`
-- Modify: `apps/web/src/app/globals.css`
+- 修改：`apps/web/src/features/auth/auth-forms.tsx`
+- 修改：`apps/web/src/features/auth/auth-forms.test.tsx`
+- 修改：`apps/web/src/app/globals.css`
 
-**Interfaces:**
+**接口：**
 
-- Consumes: the existing `FormField` and React Hook Form registration props.
-- Produces: an optional `showPasswordToggle` field behavior with button labels `显示密码` and `隐藏密码`.
+- 使用：现有的 `FormField` 和 React Hook Form 注册属性。
+- 产出：可选的 `showPasswordToggle` 字段行为，按钮标签为 `显示密码` 和 `隐藏密码`。
 
-- [ ] **Step 1: Write failing form tests**
+- [ ] **步骤 1：编写预期失败的表单测试**
 
-  Add tests that assert the registration form accepts exactly eight characters and that the toggle preserves the entered value:
+  添加测试，断言注册表单接受恰好八个字符的密码，且切换可见性时保留已输入的值：
 
   ```tsx
   it("accepts an eight-character signup password", async () => {
@@ -146,7 +146,7 @@
   });
   ```
 
-  Add a seven-character validation assertion to the existing validation test:
+  在现有验证测试中添加七字符密码的校验断言：
 
   ```tsx
   await user.type(screen.getByLabelText("密码"), "1234567");
@@ -154,27 +154,27 @@
   expect(await screen.findByText("密码至少需要 8 个字符")).toBeInTheDocument();
   ```
 
-- [ ] **Step 2: Run the form test file and verify RED**
+- [ ] **步骤 2：运行表单测试文件并确认失败**
 
-  Run:
+  运行：
 
   ```powershell
   pnpm --filter @gradmatch/web test -- auth-forms.test.tsx
   ```
 
-  Expected: the eight-character case is blocked by the 12-character schema and no `显示密码` button exists.
+  预期：八字符用例被要求 12 个字符的校验模式拦截，且不存在 `显示密码` 按钮。
 
-- [ ] **Step 3: Implement the smallest reusable field change**
+- [ ] **步骤 3：实现最小的可复用字段变更**
 
-  In `auth-forms.tsx`, change the Zod password rule to:
+  在 `auth-forms.tsx` 中，将 Zod 密码规则改为：
 
   ```tsx
   password: z.string().min(8, "密码至少需要 8 个字符"),
   ```
 
-  Extend `FormField` with `showPasswordToggle?: boolean`. When it is true, keep a local `isPasswordVisible` state, use `type={isPasswordVisible ? "text" : "password"}`, and render a `type="button"` control beside the input. Its `aria-label` must switch between `显示密码` and `隐藏密码`; give its inline SVG `aria-hidden="true"`. Pass `showPasswordToggle` only from `SignupForm`.
+  为 `FormField` 扩展 `showPasswordToggle?: boolean`。当其为真时，维护本地 `isPasswordVisible` 状态，使用 `type={isPasswordVisible ? "text" : "password"}`，并在输入框旁渲染一个 `type="button"` 控件。其 `aria-label` 必须在 `显示密码` 和 `隐藏密码` 之间切换；为其内联 SVG 设置 `aria-hidden="true"`。仅从 `SignupForm` 传入 `showPasswordToggle`。
 
-  Add scoped CSS:
+  添加限定作用范围的 CSS：
 
   ```css
   .input-with-action { position: relative; }
@@ -184,42 +184,42 @@
   .password-toggle svg { height: 1.15rem; width: 1.15rem; }
   ```
 
-- [ ] **Step 4: Run the form test file and verify GREEN**
+- [ ] **步骤 4：运行表单测试文件并确认通过**
 
-  Run the Step 2 command. Expected: the new UI and validation tests pass alongside the existing request-shape tests.
+  运行步骤 2 中的命令。预期：新增的 UI 和校验测试以及现有的请求结构测试均通过。
 
-- [ ] **Step 5: Run the complete web unit-test suite**
+- [ ] **步骤 5：运行完整的 Web 单元测试套件**
 
-  Run:
+  运行：
 
   ```powershell
   pnpm --filter @gradmatch/web test
   ```
 
-  Expected: all Vitest tests pass.
+  预期：所有 Vitest 测试均通过。
 
-- [ ] **Step 6: Commit the registration UX change**
+- [ ] **步骤 6：提交注册用户体验变更**
 
   ```powershell
   git add apps/web/src/features/auth/auth-forms.tsx apps/web/src/features/auth/auth-forms.test.tsx apps/web/src/app/globals.css
   git commit -m "feat: improve signup password entry"
   ```
 
-### Task 3: Remove operational status from the public homepage
+### 任务 3：从公开首页移除运行状态
 
-**Files:**
+**文件：**
 
-- Modify: `apps/web/src/app/page.tsx`
-- Modify: `apps/web/e2e/authentication.spec.ts`
+- 修改：`apps/web/src/app/page.tsx`
+- 修改：`apps/web/e2e/authentication.spec.ts`
 
-**Interfaces:**
+**接口：**
 
-- Consumes: the existing public route `/` and the Caddy-served browser application.
-- Produces: a public homepage without `StatusPanel` or `loadServerStatus` usage; health endpoints and their implementation remain unchanged.
+- 使用：现有的公开路由 `/` 和由 Caddy 提供服务的浏览器应用。
+- 产出：不使用 `StatusPanel` 或 `loadServerStatus` 的公开首页；健康检查端点及其实现保持不变。
 
-- [ ] **Step 1: Write the failing homepage end-to-end assertion**
+- [ ] **步骤 1：编写预期失败的首页端到端断言**
 
-  Replace the status-focused homepage test with:
+  将以状态为重点的首页测试替换为：
 
   ```tsx
   test("renders a product homepage without operational details", async ({ page }) => {
@@ -233,27 +233,27 @@
   });
   ```
 
-- [ ] **Step 2: Run the homepage test and verify RED**
+- [ ] **步骤 2：运行首页测试并确认失败**
 
-  Run:
+  运行：
 
   ```powershell
   pnpm e2e -- --grep "product homepage"
   ```
 
-  Expected: the test fails because the current homepage renders the platform-status card and `development` metadata.
+  预期：由于当前首页渲染了平台状态卡片和 `development` 元数据，测试失败。
 
-- [ ] **Step 3: Remove only the public status presentation**
+- [ ] **步骤 3：仅移除公开状态展示**
 
-  In `page.tsx`, remove the imports for `loadServerStatus` and `StatusPanel`, remove `export const dynamic = "force-dynamic"`, remove `const presentation = await loadServerStatus()`, and remove `<StatusPanel presentation={presentation} />` from the hero section. Leave `features/status`, health API routes, and their tests in place for internal operations.
+  在 `page.tsx` 中，移除 `loadServerStatus` 和 `StatusPanel` 的导入，移除 `export const dynamic = "force-dynamic"`，移除 `const presentation = await loadServerStatus()`，并从首屏主视觉区域移除 `<StatusPanel presentation={presentation} />`。保留 `features/status`、健康检查 API 路由及其测试，供内部运维使用。
 
-- [ ] **Step 4: Run the homepage end-to-end test and verify GREEN**
+- [ ] **步骤 4：运行首页端到端测试并确认通过**
 
-  Run the Step 2 command. Expected: the public page displays the product entry content and none of the operational text.
+  运行步骤 2 中的命令。预期：公开页面显示产品入口内容，不显示任何运维文字。
 
-- [ ] **Step 5: Run full regression checks**
+- [ ] **步骤 5：运行完整的回归检查**
 
-  Run:
+  运行：
 
   ```powershell
   pnpm check
@@ -263,9 +263,9 @@
   pnpm e2e
   ```
 
-  Expected: every command exits with code 0.
+  预期：每条命令均以退出码 0 结束。
 
-- [ ] **Step 6: Commit the public-homepage change**
+- [ ] **步骤 6：提交公开首页变更**
 
   ```powershell
   git add apps/web/src/app/page.tsx apps/web/e2e/authentication.spec.ts
