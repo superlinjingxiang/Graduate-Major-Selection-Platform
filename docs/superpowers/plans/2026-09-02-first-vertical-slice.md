@@ -10,6 +10,10 @@
 
 **Spec:** `docs/product-requirements.md`, `docs/architecture.md`, `docs/research/pilot-scope-2027-v1.md`, and `docs/research/validation-protocol-v1.md`.
 
+## Progress checkpoint — 2026-09-04
+
+Tasks 1–8 have implementation commits; Task 9 has test scaffolding only and currently fails because its pages/components do not exist. Task 10 and release verification remain pending. See the [progress record](../../progress/2026-09-04-first-vertical-slice.md) for fresh checks, known gaps, and continuation priorities. This plan is not complete. Resolve Web paths below against the actual `apps/web/src/app`, `apps/web/src/features`, and `apps/web/src/lib` layout.
+
 ## Global constraints
 
 - The only production pilot is target year 2027, Beijing, full-time, unified-exam, computer-related programs, at shortlist-convergence stage.
@@ -586,4 +590,3 @@ If configured native services are available, also run migrations and exercise `/
 Perform a final requirements review against every global constraint, then request a code review before declaring completion.
 
 Commit: `test: verify first pilot vertical slice`
-

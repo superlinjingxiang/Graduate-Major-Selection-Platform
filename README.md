@@ -14,6 +14,12 @@ GradMatch is a Web-first monorepo with a Django API, headless authentication, an
 
 Confirmed product interactions and their acceptance criteria live in [docs/product-requirements.md](docs/product-requirements.md). Add new product feedback there before turning it into an implementation task.
 
+## Current progress
+
+See the [2026-09-04 progress checkpoint](docs/progress/2026-09-04-first-vertical-slice.md) for implemented work, verification evidence, known gaps, and next steps. The first vertical slice is still in development: backend/shared contracts are implemented, but the new Web decision-flow tests reference components that do not exist yet. Web tests and type checking currently fail; this is not a release-ready checkpoint.
+
+Local development is moving to native Windows services; Docker Compose remains an optional deployment path. The setup instructions below describe the earlier container workflow and do not establish current native readiness. Native setup documentation and integration verification remain part of Task 10.
+
 ## Commands
 
 - `pnpm dev`: start the monorepo development processes

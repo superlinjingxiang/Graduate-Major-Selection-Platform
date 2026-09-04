@@ -35,6 +35,9 @@ importers:
       '@gradmatch/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@gradmatch/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@hookform/resolvers':
         specifier: ^5.9.1
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.86.0(react@19.2.8))(zod@4.4.3)
