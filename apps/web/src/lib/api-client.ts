@@ -11,6 +11,7 @@ const unsafeMethods = new Set(["DELETE", "PATCH", "POST", "PUT"]);
 const browserAuthPath = { params: { path: { client: "browser" as const } } };
 
 let browserCsrfRequest: Promise<void> | undefined;
+const replayableBrowserRequests = new WeakMap<Request, Request>();
 
 function readBrowserCookie(name: string) {
   if (typeof document === "undefined") return undefined;
@@ -52,6 +53,7 @@ const browserCsrfMiddleware = {
 
     const csrfToken = readBrowserCookie("csrftoken");
     if (csrfToken) request.headers.set("X-CSRFToken", csrfToken);
+    replayableBrowserRequests.set(request, request.clone());
   },
   async onResponse({
     options,
@@ -66,11 +68,12 @@ const browserCsrfMiddleware = {
 
     await refreshBrowserCsrf();
     const csrfToken = readBrowserCookie("csrftoken");
-    if (!csrfToken) return;
+    const replayableRequest = replayableBrowserRequests.get(request);
+    if (!csrfToken || !replayableRequest) return;
 
-    const headers = new Headers(request.headers);
+    const headers = new Headers(replayableRequest.headers);
     headers.set("X-CSRFToken", csrfToken);
-    return options.fetch(new Request(request, { headers }));
+    return options.fetch(new Request(replayableRequest, { headers }));
   },
 };
 

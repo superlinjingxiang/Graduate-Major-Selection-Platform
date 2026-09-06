@@ -35,6 +35,7 @@ export function FactForm({ offeringIds }: FactFormProps) {
       });
       if (!factResult.data) throw new Error("Fact set creation failed");
 
+      const assessmentStatuses: string[] = [];
       for (const offeringId of offeringIds) {
         const assessmentResult = await browserCoreClient.POST("/api/v1/eligibility-assessments", {
           body: {
@@ -44,6 +45,10 @@ export function FactForm({ offeringIds }: FactFormProps) {
           },
         });
         if (!assessmentResult.data) throw new Error("Eligibility assessment failed");
+        assessmentStatuses.push(assessmentResult.data.status);
+      }
+      if (assessmentStatuses.some((status) => status !== "needs_confirmation")) {
+        throw new Error("Pending pilot assessment produced a conclusive status");
       }
 
       const comparisonResult = await browserCoreClient.POST("/api/v1/comparison-runs", {

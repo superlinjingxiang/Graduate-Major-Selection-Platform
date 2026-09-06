@@ -76,7 +76,11 @@ describe("decision summary", () => {
     ["awaiting_official_information", "等待 2027 官方信息"],
     ["postpone_application", "暂缓本轮申请准备"],
   ] as const)("renders the %s outcome without turning it into a ranking", (outcome, title) => {
-    render(<DecisionSummary offerings={offerings} snapshot={{ ...snapshot, outcome }} />);
+    const publishedOfferings = offerings.map((offering) => ({
+      ...offering,
+      publication_status: "published",
+    }));
+    render(<DecisionSummary offerings={publishedOfferings} snapshot={{ ...snapshot, outcome }} />);
 
     expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
     expect(screen.queryByText(/概率|排名|推荐分|录取把握/u)).not.toBeInTheDocument();

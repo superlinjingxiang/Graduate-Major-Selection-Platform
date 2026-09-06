@@ -55,6 +55,7 @@ describe("browser API CSRF middleware", () => {
     // biome-ignore lint/suspicious/noDocumentCookie: simulates a stale browser CSRF cookie.
     document.cookie = "csrftoken=stale-token; path=/";
     let mutationAttempts = 0;
+    const mutationBodies: unknown[] = [];
     const fetchMock = vi.fn(async (request: Request) => {
       const pathname = new URL(request.url).pathname;
       if (pathname === "/_allauth/browser/v1/config") {
@@ -63,6 +64,7 @@ describe("browser API CSRF middleware", () => {
         return Response.json({}, { status: 200 });
       }
       mutationAttempts += 1;
+      mutationBodies.push(await request.json());
       if (mutationAttempts === 1) {
         expect(request.headers.get("X-CSRFToken")).toBe("stale-token");
         return Response.json({ detail: "CSRF Failed" }, { status: 403 });
@@ -87,6 +89,10 @@ describe("browser API CSRF middleware", () => {
 
     expect(result.response.status).toBe(201);
     expect(mutationAttempts).toBe(2);
+    expect(mutationBodies).toEqual([
+      { confirmed_facts: { target_year: 2027 } },
+      { confirmed_facts: { target_year: 2027 } },
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

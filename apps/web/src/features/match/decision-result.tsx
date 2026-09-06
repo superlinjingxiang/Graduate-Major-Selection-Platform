@@ -12,6 +12,29 @@ type DecisionResultProps = Readonly<{
   snapshotId: string;
 }>;
 
+function assertPendingPilotSnapshot(
+  offerings: readonly PilotOffering[],
+  snapshot: ReturnType<typeof decisionSnapshotSchema.parse>,
+) {
+  if (!offerings.every(({ publication_status }) => publication_status === "pending_publication")) {
+    return snapshot;
+  }
+
+  const deferred = new Set(snapshot.deferred);
+  const allOfferingsDeferred =
+    snapshot.deferred.length === offerings.length && offerings.every(({ id }) => deferred.has(id));
+  if (
+    snapshot.outcome !== "awaiting_official_information" ||
+    snapshot.retained.length > 0 ||
+    snapshot.excluded.length > 0 ||
+    !allOfferingsDeferred
+  ) {
+    throw new Error("Pending pilot snapshot is inconsistent with its evidence state");
+  }
+
+  return snapshot;
+}
+
 export function DecisionResult({ offerings, snapshotId }: DecisionResultProps) {
   const snapshot = useQuery({
     queryKey: ["decision-snapshot", snapshotId],
@@ -20,7 +43,7 @@ export function DecisionResult({ offerings, snapshotId }: DecisionResultProps) {
         params: { path: { snapshot_id: snapshotId } },
       });
       if (!result.data) throw new Error("Snapshot unavailable");
-      return decisionSnapshotSchema.parse(result.data);
+      return assertPendingPilotSnapshot(offerings, decisionSnapshotSchema.parse(result.data));
     },
   });
 

@@ -17,7 +17,11 @@ const snapshot = {
   outcome: "awaiting_official_information",
   retained: [],
   excluded: [],
-  deferred: ["ao_2027_bupt_081200_ft_unified_plan01"],
+  deferred: [
+    "ao_2027_bupt_081200_ft_unified_plan01",
+    "ao_2027_bit_085404_ft_unified_plan01",
+    "ao_2027_bjut_085410_ft_unified_plan01",
+  ],
   user_confirmed_reasons: [],
   key_unknowns: ["rule_unpublished"],
   next_actions: ["等待并复核 2027 官方招生信息"],
@@ -32,6 +36,20 @@ const offerings = [
     program_code: "081200",
     publication_status: "pending_publication",
     title: "计算机科学与技术",
+  },
+  {
+    id: "ao_2027_bit_085404_ft_unified_plan01",
+    institution_name: "北京理工大学",
+    program_code: "085404",
+    publication_status: "pending_publication",
+    title: "计算机技术",
+  },
+  {
+    id: "ao_2027_bjut_085410_ft_unified_plan01",
+    institution_name: "北京工业大学",
+    program_code: "085410",
+    publication_status: "pending_publication",
+    title: "人工智能",
   },
 ];
 
@@ -81,5 +99,34 @@ describe("decision result", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "重新填写信息" })).toHaveAttribute("href", "/match");
     expect(screen.queryByText(/Decision snapshot|404|capability|token/u)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "a non-awaiting outcome",
+      { outcome: "shortlist_ready", retained: [], excluded: [], deferred: snapshot.deferred },
+    ],
+    [
+      "a snapshot that does not defer every pending offering",
+      {
+        outcome: "awaiting_official_information",
+        retained: [offerings[0]?.id],
+        excluded: [],
+        deferred: snapshot.deferred.slice(1),
+      },
+    ],
+  ])("rejects %s at the pending pilot boundary", async (_case, invalidState) => {
+    transport.GET.mockResolvedValue({
+      data: { ...snapshot, ...invalidState },
+      response: new Response(null, { status: 200 }),
+    });
+
+    renderResult();
+
+    expect(
+      await screen.findByRole("heading", { name: "无法读取这份资格快照" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "可以开始核对候选清单" })).not.toBeInTheDocument();
+    expect(screen.queryByText("资格状态：符合已确认条件")).not.toBeInTheDocument();
   });
 });

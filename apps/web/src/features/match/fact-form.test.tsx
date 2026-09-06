@@ -17,6 +17,20 @@ const offeringIds = [
   "ao_2027_bjut_085410_ft_unified_plan01",
 ] as const;
 
+function assessmentResponse(offeringId: string, status: string, assessmentId: number) {
+  return {
+    assessment_id: assessmentId,
+    fact_revision: 1,
+    fact_set_id: "56d1aa4c-a22e-46c5-b69d-3228f408a92a",
+    input_hash: "c".repeat(64),
+    offering_id: offeringId,
+    reasons: [],
+    rule_set_key: null,
+    rule_set_revision: null,
+    status,
+  };
+}
+
 function renderForm() {
   const client = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -44,6 +58,7 @@ describe("fact form", () => {
   });
 
   it("creates facts, three assessments, a comparison and a snapshot in order", async () => {
+    let assessmentIndex = 0;
     transport.POST.mockImplementation((path: string) => {
       if (path === "/api/v1/fact-sets") {
         return Promise.resolve({
@@ -56,7 +71,11 @@ describe("fact form", () => {
         });
       }
       if (path === "/api/v1/eligibility-assessments") {
-        return Promise.resolve({ data: { status: "needs_confirmation" } });
+        const offeringId = offeringIds[assessmentIndex] ?? "unexpected-offering";
+        assessmentIndex += 1;
+        return Promise.resolve({
+          data: assessmentResponse(offeringId, "needs_confirmation", assessmentIndex),
+        });
       }
       if (path === "/api/v1/comparison-runs") {
         return Promise.resolve({
@@ -122,6 +141,49 @@ describe("fact form", () => {
     expect(transport.POST).toHaveBeenNthCalledWith(6, "/api/v1/decision-snapshots", {
       body: { comparison_run_id: "d50b61bc-a118-4be4-a0b5-e9515ed54775" },
     });
+  });
+
+  it("stops before comparison unless all three assessments need confirmation", async () => {
+    let assessmentIndex = 0;
+    const statuses = ["needs_confirmation", "eligible_known", "needs_confirmation"] as const;
+    transport.POST.mockImplementation((path: string) => {
+      if (path === "/api/v1/fact-sets") {
+        return Promise.resolve({
+          data: {
+            fact_set_id: "56d1aa4c-a22e-46c5-b69d-3228f408a92a",
+            version: 1,
+            confirmed_facts: {},
+            input_hash: "a".repeat(64),
+          },
+        });
+      }
+      if (path === "/api/v1/eligibility-assessments") {
+        const index = assessmentIndex;
+        assessmentIndex += 1;
+        return Promise.resolve({
+          data: assessmentResponse(
+            offeringIds[index] ?? "unexpected-offering",
+            statuses[index] ?? "",
+            index + 1,
+          ),
+        });
+      }
+      return Promise.resolve({ error: { detail: "comparison must not be created" } });
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText("我确认以上报考范围"));
+    await user.click(screen.getByRole("button", { name: "生成资格快照" }));
+
+    expect(await screen.findByText("暂时无法生成资格快照，请稍后重试。")).toBeInTheDocument();
+    expect(
+      transport.POST.mock.calls.filter(([path]) => path === "/api/v1/eligibility-assessments"),
+    ).toHaveLength(3);
+    expect(transport.POST.mock.calls.some(([path]) => path === "/api/v1/comparison-runs")).toBe(
+      false,
+    );
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("keeps the user on the form and announces an API failure", async () => {
