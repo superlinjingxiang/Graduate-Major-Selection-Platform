@@ -5,6 +5,7 @@ from typing import cast
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from gradmatch.accounts.models import User
@@ -202,16 +203,7 @@ def _create_revalidation_rule_sets(
     reviewer: User,
     now: datetime,
 ) -> list[int]:
-    published_rule_sets = list(
-        RuleSetRevision.objects.select_for_update()
-        .filter(
-            namespace=RuleSetRevision.Namespace.PRODUCTION.value,
-            status=RuleSetRevision.Status.PUBLISHED.value,
-            rules__evidence_usages__claim=superseded_claim,
-        )
-        .distinct()
-        .order_by("key", "revision")
-    )
+    published_rule_sets = list(select_published_rule_sets_for_update(superseded_claim))
     revised_ids: list[int] = []
     for previous in published_rule_sets:
         latest = (
@@ -256,6 +248,24 @@ def _create_revalidation_rule_sets(
         publish_rule_set(rule_set_id=revised.pk, reviewer=reviewer, now=now)
         revised_ids.append(revised.pk)
     return revised_ids
+
+
+def select_published_rule_sets_for_update(
+    claim: EvidenceClaimRevision,
+) -> QuerySet[RuleSetRevision]:
+    matching_ids = RuleEvidenceUsage.objects.filter(claim=claim).values_list(
+        "rule__rule_set_id",
+        flat=True,
+    )
+    return (
+        RuleSetRevision.objects.select_for_update()
+        .filter(
+            pk__in=matching_ids,
+            namespace=RuleSetRevision.Namespace.PRODUCTION.value,
+            status=RuleSetRevision.Status.PUBLISHED.value,
+        )
+        .order_by("key", "revision")
+    )
 
 
 @transaction.atomic

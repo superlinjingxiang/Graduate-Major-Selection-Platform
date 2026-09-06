@@ -31,8 +31,19 @@ from gradmatch.support.services import (
     accept_correction,
     process_recomputation_event,
     publish_correction,
+    select_published_rule_sets_for_update,
     submit_correction,
 )
+
+
+@pytest.mark.django_db
+def test_revalidation_lock_query_avoids_distinct_with_select_for_update() -> None:
+    claim = create_claim(create_source_document())
+
+    queryset = select_published_rule_sets_for_update(claim)
+
+    assert queryset.query.select_for_update is True
+    assert queryset.query.distinct is False
 
 
 @pytest.mark.django_db

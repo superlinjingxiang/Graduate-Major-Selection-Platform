@@ -12,7 +12,7 @@
 
 ## 完成检查点 — 2026-09-06
 
-任务 1–10 的代码、中文文档和隔离自动化验收已经完成，当前实现提交为 `0e64db3..184d7e3`。最新的全仓检查通过 97 个 Python 测试、35 个 Web 测试、7 个领域测试和 25 个工具测试，并通过严格类型检查、生产 Web 构建、OpenAPI 客户端漂移、Compose 与 CI 结构检查。Task 10 独立评审经过两轮修复后结论为 `Ready to merge: Yes`。详情见[2026-09-06 进度记录](../../progress/2026-09-06-first-vertical-slice.md)。
+任务 1–10 的代码、中文文档和隔离自动化验收已经完成，当前实现提交始于 `0e64db3`。最新的全仓检查通过 98 个 Python 测试、35 个 Web 测试、7 个领域测试和 25 个工具测试，并通过严格类型检查、生产 Web 构建、OpenAPI 客户端漂移、Compose 与 CI 结构检查。Task 10 独立评审经过两轮修复后结论为 `Ready to merge: Yes`。详情见[2026-09-06 进度记录](../../progress/2026-09-06-first-vertical-slice.md)。
 
 本机只读诊断确认 Python 可用，但 PostgreSQL、Redis 和 S3 兼容对象存储当前未启动，因此没有把真实 PostgreSQL 迁移、运行中 `/health/ready` 或跨进程 Celery 消费写成已验证。AI、支付、移动端和真实来源采集继续关闭。下方 Web 路径按实际的 `apps/web/src/app`、`apps/web/src/features` 和 `apps/web/src/lib` 目录结构解析。
 
