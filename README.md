@@ -1,42 +1,34 @@
 # GradMatch
 
-GradMatch 是一个 Web 优先的单仓库项目，包含 Django API、前后端分离认证和 Next.js 产品基础页面。共享 TypeScript 包保持平台无关，未来的 Expo 应用可以复用业务规则、设计令牌和自动生成的 API 客户端。
+GradMatch 是一个面向研究生报考决策的 Web 优先单仓库。当前首个纵向链路聚焦 2027 年北京、全日制、全国统考、计算机相关方向；系统用可追溯证据给出资格三态、候选比较和决策快照，不提供录取概率或“冲稳保”承诺。
 
 ## 项目目录
 
-- `apps/web`：基于 Next.js App Router 的最小基础页面。
-- `packages/api-client`：根据 Django Ninja 核心 API 和 allauth Headless API 自动生成的 TypeScript 客户端。
-- `packages/domain`：共享的 TypeScript 业务契约。
-- `packages/design-tokens`：具备类型定义、无浏览器依赖的语义化设计令牌。
-- `services/api`：由 uv 管理的 Django 模块化单体，集成 Django Ninja、Admin 和 allauth Headless。
-
-## 产品需求
-
-已确认的产品交互和验收标准记录在[产品需求文档](docs/product-requirements.md)中。新的产品反馈应先补充到该文档，再转化为实施任务。
+- `apps/web`：Next.js App Router Web 应用，公开目录由服务端渲染，交互流程使用生成客户端。
+- `services/api`：Django 模块化单体，包含 Django Ninja、allauth Headless、Admin、Celery 和领域数据。
+- `packages/api-client`：由核心 API 和 allauth OpenAPI 自动生成的 TypeScript 客户端。
+- `packages/domain`：不依赖浏览器、Next.js 或 React Native 的共享业务契约。
+- `packages/design-tokens`：跨平台语义化颜色、排版、间距、圆角、阴影和动效令牌。
+- `docs`：中文产品需求、架构、研究范围和进度记录。
 
 ## 当前进度
 
-已实现内容、验证证据、已知缺口和后续步骤见 [2026-09-04 阶段进度记录](docs/progress/2026-09-04-first-vertical-slice.md)。首个纵向链路仍在开发：后端与共享契约已落地，但新增 Web 决策流程测试引用的组件尚未实现。当前 Web 测试和类型检查不通过，本次检查点不是可发布版本。
+首个纵向链路的代码已经覆盖以下流程：冻结试点目录、确认用户事实、三个工程项目的资格三态、确定性比较、访客决策快照、账户认领、纠错审核发布，以及同一事务出箱事件重复处理时的幂等重算。工程验收同时验证旧结果和旧快照保持不变，`synthetic`、`test_fixture` 与 `reference_year=2026` 测试数据不会进入公开响应。
 
-本机开发正在转向 Windows 原生服务，Docker Compose 保留为可选部署方式。下方启动说明描述的是早期容器流程，不代表当前原生环境已就绪。原生启动文档和集成验证仍属于任务 10 的待完成内容。
+Web 端已提供试点项目目录、事实确认、比较结果、决策快照和纠错入口。AI、真实支付、移动端页面和真实外部来源采集保持关闭。2027 年正式规则尚未发布时，真实项目只能返回“需要确认”，不能被测试夹具提升为确定结论。
 
-## 常用命令
+本地开发采用 Windows 原生进程，Docker Compose 仅作为可选的单机部署与 CI 验证方式。运行状态以 `pnpm status:native` 的实时输出为准；代码检查通过不代表本机 PostgreSQL、Redis 或对象存储已经启动。
 
-- `pnpm dev`：启动单仓库的开发进程。
-- `pnpm build`：构建全部 TypeScript 工作区包和 Web 应用。
-- `pnpm lint`：使用 Biome 检查 JavaScript、TypeScript、JSON 和 Markdown 文件。
-- `pnpm typecheck`：对整个工作区执行 TypeScript 严格类型检查。
-- `pnpm test`：运行工作区烟雾测试。
-- `pnpm format:check`：使用 Biome 检查格式。
-- `pnpm generate:api`：导出核心 API 和认证 API 的 OpenAPI 规范，再生成 TypeScript 客户端。
-- `pnpm check:api-drift`：重新生成客户端；如果与已提交的契约产物存在差异，则检查失败。
-- `pnpm check:compose`：不启动 Docker，仅解析 Compose、检查 Caddy 路由及容器服务、健康检查和密钥边界。
-- `pnpm check`：执行 CI 使用的全部 Web/TypeScript 质量检查。
-- `pnpm e2e`：使用 Playwright 对 `http://127.0.0.1:8080` 上的 Compose 服务执行端到端测试。
+## Windows 原生开发
 
-## Windows 环境准备（早期容器流程）
+### 1. 前置依赖
 
-前置依赖：Node.js 22+、pnpm 11+、Python 3.11–3.13；使用完整容器集成环境还需 Docker Desktop。复制本地环境模板并安装前后端依赖：
+- Node.js 22 或更高版本、pnpm 11 或更高版本；
+- Python 3.11–3.13，项目推荐使用 `uv`；
+- 独立安装并启动 PostgreSQL、Redis 兼容服务和 S3 兼容对象存储；
+- 需要测试注册邮件时，再启动本地 SMTP 捕获服务（例如 Mailpit）。
+
+复制环境模板并安装依赖：
 
 ```powershell
 Copy-Item .env.example .env
@@ -44,69 +36,97 @@ pnpm install --frozen-lockfile
 python -m uv --directory services/api sync --all-groups
 ```
 
-按照此容器流程在本机开发 API 时，先通过 Compose 启动 PostgreSQL、Redis、MinIO 和 Mailpit，再执行一次数据库迁移：
+`.env.example` 默认指向 `localhost:5432`、`localhost:6379`、`localhost:9000`、API 的 `localhost:8000` 和 Web 的 `localhost:3000`。复制后请把占位密码改为本机服务的实际凭据；`.env` 不得提交。
+
+### 2. 检查本机依赖
 
 ```powershell
-docker compose up -d postgres redis minio minio-init mailpit
-python -m uv --directory services/api run python manage.py migrate
-python -m uv --directory services/api run python manage.py collectstatic --noinput
+pnpm status:native
 ```
 
-修改 Django Ninja 或 allauth 接口后，重新生成契约：
+该命令只执行读取和连接检查：导入 Python 项目包、对 PostgreSQL 执行 `SELECT 1`、对 Redis 执行 `PING`、检查 S3 bucket，并报告 8000/3000 端口是否占用。它不会启动、停止或修改服务；任一必需依赖不可用时以非零状态退出。
+
+### 3. 迁移并启动后端
+
+在第一个 PowerShell 窗口执行迁移和 API：
+
+```powershell
+Set-Location services/api
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe -m uvicorn gradmatch.config.asgi:application --host 127.0.0.1 --port 8000 --reload
+```
+
+在第二、第三个窗口分别启动 Celery worker 和 beat。Windows 开发环境的 worker 使用 `solo` 池：
+
+```powershell
+Set-Location services/api
+.\.venv\Scripts\python.exe -m celery -A gradmatch worker --loglevel=INFO --pool=solo
+```
+
+```powershell
+Set-Location services/api
+.\.venv\Scripts\python.exe -m celery -A gradmatch beat --loglevel=INFO
+```
+
+Celery 任务入口和幂等重算已经实现；定时调度是否实际触发仍取决于 worker、beat、Redis 以及已配置的调度项，不能仅凭进程启动推断业务事件已自动消费。
+
+### 4. 启动 Web
+
+在仓库根目录的新窗口执行：
+
+```powershell
+pnpm --filter @gradmatch/web dev
+```
+
+浏览器打开 `http://localhost:3000`。Next.js 会把 `/api/*`、`/_allauth/*`、`/accounts/*`、`/admin/*`、`/static/*` 和 `/media/*` 转发给本机 Django，因此浏览器继续使用同源 Cookie 与统一 CSRF 处理。
+
+后端启动后可在终端验证内部就绪接口：
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/v1/health/ready
+```
+
+就绪接口用于开发和运维，不应放到普通用户页面。
+
+## 常用检查命令
+
+- `pnpm check`：执行格式、lint、类型检查、测试、Python 检查、构建、OpenAPI 漂移、Compose 静态检查和 CI 配置检查。
+- `pnpm check:api-drift`：重新生成核心 API 与认证客户端，并检查是否存在未提交的契约漂移。
+- `pnpm --filter @gradmatch/web build`：单独构建 Web 应用。
+- `pnpm test:tooling`：测试 Python 运行时发现和本机状态诊断脚本。
+- `pnpm e2e`：对已启动的完整服务运行浏览器端到端测试。
+
+Python 项目也可单独检查：
+
+```powershell
+python -m uv --directory services/api run ruff check .
+python -m uv --directory services/api run pyright
+python -m uv --directory services/api run pytest
+```
+
+修改 Django Ninja 或 allauth 接口后执行：
 
 ```powershell
 pnpm generate:api
 pnpm check:api-drift
 ```
 
-使用 `pnpm dev` 启动 Web 工作区进程。早期方案通过 Docker Compose 验证 Web/API 同源访问及端到端认证。编写该启动说明时，本机 Windows 尚未安装 Docker，因此当时无法本地执行 `docker compose config`、镜像构建和端到端测试；CI 在 Linux 上执行这些检查。当前原生运行的验证状态以上方进度记录为准。
+## 可选 Docker Compose
 
-## Python 服务
-
-使用限定在 `services/api` 目录下的可移植 `uv` 命令：
-
-```powershell
-python -m uv --directory services/api lock
-python -m uv --directory services/api run ruff check .
-python -m uv --directory services/api run pyright
-python -m uv --directory services/api run pytest
-```
-
-如果 `uv` 已加入 `PATH`，也可以从仓库根目录执行以下等效命令：
-
-```powershell
-uv --directory services/api lock
-uv --directory services/api run ruff check .
-uv --directory services/api run pyright
-uv --directory services/api run pytest
-```
-
-## 认证与 API 契约
-
-- `GET /api/v1/health/live`、`GET /api/v1/health/ready` 和 `GET /api/v1/meta` 提供初始系统契约。
-- `/_allauth/*` 提供邮箱注册、邮箱验证、密码登录、一次性验证码登录、注销和 Headless OpenAPI 文档。
-- 浏览器客户端使用安全的 HttpOnly 会话 Cookie 认证；未来移动端使用 allauth 的 `X-Session-Token`。GradMatch 不签发 JWT。
-- 本地邮件投递到 `EMAIL_SMTP_*` 指定的 SMTP 主机；Docker Compose 会将这些变量指向 Mailpit。
-
-## 本地容器服务
-
-Docker Compose 是首个部署目标：Caddy 为浏览器提供统一访问源，Django 处理 API、allauth、admin 及 static/media 路径，Next.js 处理其余页面。PostgreSQL、Redis、MinIO、Mailpit、Celery worker/beat 和一次性迁移服务保留在服务栈内部。
+Docker 不是本机功能开发的前置条件。需要复现单机服务栈时，Compose 会启动 Caddy、Web、API、Celery worker/beat、PostgreSQL、Redis、MinIO 和 Mailpit，并由一次性迁移服务执行数据库迁移：
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build --wait
 ```
 
-访问 `http://localhost` 打开 GradMatch，访问 `http://localhost:8025` 打开 Mailpit。一次性 `migrate` 服务会在 API、worker 或 beat 进程启动前执行迁移，并将静态文件收集到 API 以只读方式挂载的共享卷。使用 `docker compose down` 停止服务；只有明确需要丢弃本地 PostgreSQL、MinIO 和静态文件数据时，才添加 `--volumes`。
+Compose 明确覆盖容器内部主机名与对外 Web 地址，因此 `.env.example` 的原生 `localhost` 地址不会被带入容器间连接。访问 `http://localhost` 打开 GradMatch，访问 `http://localhost:8025` 打开 Mailpit。停止服务使用 `docker compose down`；只有明确要删除本地持久化数据时才添加 `--volumes`。
 
-已提交的 `.env.example` 中仅包含开发用占位值。复制得到的 `.env` 应只保留在本机；任何接近部署用途的环境都应使用足够长且独立的 Django 密钥，切勿提交真实凭据。
+## 产品与安全边界
 
-## 采集基础能力
+- 浏览器使用 Django 的 Secure、HttpOnly、SameSite 会话 Cookie；未来 Expo 使用 allauth `X-Session-Token`，不引入 JWT。
+- PostgreSQL 是业务事实的权威来源；Redis 只保存临时任务状态，对象存储保存不可变来源数据块和派生产物。
+- 首个真实来源接入前仍需完成来源权利、安全、审核和发布门禁；测试只使用本地 fixture，不访问真实网站。
+- AI、支付和移动端当前均未启用，不能通过功能开关绕过相应治理门禁。
 
-- `gradmatch.ingestion` 是由 Celery 驱动的模块化单体应用。`ingestion.run_source` 记录每次运行，并通过 Celery 对运行故障执行重试。
-- 首个 `smoke-fixture` 来源只读取 `services/api/tests/fixtures/sample-source.html`，不会请求真实公开网站。
-- 原始来源字节按 SHA-256 去重，并通过兼容 S3 的产物存储接口保存。后续适配器可以使用 HTTPX 或 Playwright 抓取接口，无需改变任务运行生命周期。
-
-## 范围说明
-
-当前仓库阶段暂不包含移动端应用，Expo 支持留待后续任务。
+详细行为见[产品需求文档](docs/product-requirements.md)，技术约束见[架构基线](docs/architecture.md)，冻结项目分母见[试点范围](docs/research/pilot-scope-2027-v1.md)。

@@ -76,10 +76,12 @@ def _find_production_rule_set(offering: AnnualOffering) -> RuleSetRevision | Non
     return (
         RuleSetRevision.objects.filter(
             manifest__entries__offering=offering,
+            rules__evidence_usages__claim__offering=offering,
             namespace=RuleSetRevision.Namespace.PRODUCTION.value,
             target_year=offering.target_year,
             status=RuleSetRevision.Status.PUBLISHED.value,
         )
+        .distinct()
         .order_by("-revision", "-id")
         .first()
     )

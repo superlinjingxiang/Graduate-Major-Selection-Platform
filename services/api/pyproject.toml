@@ -38,7 +38,7 @@ packages = ["src/gradmatch"]
 [tool.pytest.ini_options]
 addopts = "-ra"
 DJANGO_SETTINGS_MODULE = "gradmatch.config.settings_test"
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
 testpaths = ["tests"]
 
 [tool.ruff]
