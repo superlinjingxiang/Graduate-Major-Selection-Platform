@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import socket
+import sys
+import threading
+from collections.abc import Iterator
 from typing import cast
 
 import pytest
@@ -32,14 +35,37 @@ from gradmatch.support.models import JobExecution, OutboxEvent, SnapshotUpdate
 from gradmatch.support.services import accept_correction, publish_correction
 from gradmatch.support.tasks import recompute_published_correction
 
+_NETWORK_BLOCKED = threading.Event()
 
-@pytest.fixture(autouse=True)
-def block_external_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fail_network_connection(*args: object, **kwargs: object) -> socket.socket:
-        del args, kwargs
+
+def _reject_network_audit_event(event: str, args: tuple[object, ...]) -> None:
+    del args
+    if _NETWORK_BLOCKED.is_set() and event in {"socket.connect", "socket.getaddrinfo"}:
         raise AssertionError("The pilot vertical slice must not open a network connection.")
 
-    monkeypatch.setattr(socket, "create_connection", fail_network_connection)
+
+sys.addaudithook(_reject_network_audit_event)
+
+
+@pytest.fixture(autouse=True)
+def block_external_network() -> Iterator[None]:
+    _NETWORK_BLOCKED.set()
+    try:
+        yield
+    finally:
+        _NETWORK_BLOCKED.clear()
+
+
+def test_network_guard_blocks_direct_socket_connections() -> None:
+    connection = socket.socket()
+    try:
+        with pytest.raises(
+            AssertionError,
+            match="pilot vertical slice must not open a network connection",
+        ):
+            connection.connect(("127.0.0.1", 9))
+    finally:
+        connection.close()
 
 
 def _post_json(client: Client, path: str, payload: dict[str, object]):
