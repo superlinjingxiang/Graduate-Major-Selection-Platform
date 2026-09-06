@@ -1,9 +1,9 @@
 import { Panel } from "../components/ui/panel";
 
 const foundations = [
-  ["Web 优先", "以轻量服务端渲染呈现清晰、快速的首屏体验。"],
-  ["统一身份", "同一套受保护会话可在浏览器与未来移动端使用。"],
-  ["可靠数据", "采集链路保留原始快照，让后续推荐可以追溯。"],
+  ["固定范围", "只核对 3 个北京全日制计算机统考计划项目。"],
+  ["未知保持未知", "只使用你明确确认的事实，不替你猜测关键信息。"],
+  ["证据可复核", "清楚说明信息来源、当前状态和下一步行动。"],
 ] as const;
 
 export default function HomePage() {
@@ -29,24 +29,23 @@ export default function HomePage() {
 
         <section className="hero-grid">
           <div className="hero-copy">
-            <p className="eyebrow">研究生申请的可信起点</p>
-            <h1>把复杂选择，变成更笃定的下一步。</h1>
+            <p className="eyebrow">2027 北京全日制计算机统考</p>
+            <h1>先把报考资格，核对清楚。</h1>
             <p className="hero-lede">
-              GradMatch
-              正在搭建一个可验证、可迁移的匹配基础：先让信息、身份与体验都足够可靠，再逐步走向更广阔的平台。
+              根据你确认的事实核对固定试点范围；官方信息尚未发布的部分会明确保留为未知。
             </p>
             <div className="hero-actions">
-              <a className="button button-primary" href="/account/signup">
-                开始建立账户
+              <a className="button button-primary" href="/match">
+                开始资格核对
               </a>
-              <a className="text-link" href="/account/code">
-                使用验证码登录
+              <a className="text-link" href="/account/login">
+                已有账户，前往登录
               </a>
             </div>
           </div>
         </section>
 
-        <section aria-label="平台基础能力" className="foundation-grid">
+        <section aria-label="资格核对说明" className="foundation-grid">
           {foundations.map(([title, description], index) => (
             <Panel className="foundation-card" key={title}>
               <span className="foundation-index">0{index + 1}</span>

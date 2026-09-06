@@ -1,9 +1,11 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const loadPilotData = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/pilot-api", () => ({ loadPilotData }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import MatchPage from "../../app/match/page";
 
@@ -62,8 +64,11 @@ const offerings = [
 describe("match page", () => {
   it("renders the server-loaded frozen pilot without infrastructure details", async () => {
     loadPilotData.mockResolvedValue({ offerings, scope });
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    });
 
-    render(await MatchPage());
+    render(<QueryClientProvider client={queryClient}>{await MatchPage()}</QueryClientProvider>);
 
     expect(screen.getByRole("heading", { name: "先确认范围，再判断资格" })).toBeInTheDocument();
     expect(screen.getByText("北京邮电大学")).toBeInTheDocument();

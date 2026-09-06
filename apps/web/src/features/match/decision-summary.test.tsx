@@ -1,5 +1,10 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const transport = vi.hoisted(() => ({ POST: vi.fn() }));
+
+vi.mock("../../lib/api-client", () => ({ browserCoreClient: transport }));
 
 import { DecisionSummary } from "./decision-summary";
 
@@ -49,6 +54,10 @@ const offerings = [
 ];
 
 describe("decision summary", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("explains the current uncertainty without ranking or acceptance claims", () => {
     render(<DecisionSummary offerings={offerings} snapshot={snapshot} />);
 
@@ -59,5 +68,69 @@ describe("decision summary", () => {
     expect(screen.getByRole("button", { name: "提交信息纠错" })).toBeInTheDocument();
     expect(screen.queryByText(/概率|排名|推荐分|录取把握/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/development|v0\.1|平台状态/u)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["shortlist_ready", "可以开始核对候选清单"],
+    ["no_suitable_offering", "当前范围内没有可继续的项目"],
+    ["awaiting_official_information", "等待 2027 官方信息"],
+    ["postpone_application", "暂缓本轮申请准备"],
+  ] as const)("renders the %s outcome without turning it into a ranking", (outcome, title) => {
+    render(<DecisionSummary offerings={offerings} snapshot={{ ...snapshot, outcome }} />);
+
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(screen.queryByText(/概率|排名|推荐分|录取把握/u)).not.toBeInTheDocument();
+  });
+
+  it("opens a usable correction form and submits the generated request shape", async () => {
+    transport.POST.mockResolvedValue({
+      data: {
+        correction_id: "32e89961-aae0-42f9-a121-aa817c42557e",
+        explanation: "学校官网的招生说明与当前展示的信息不一致。",
+        field_key: "eligibility.requirements",
+        offering_id: offerings[0]?.id,
+        proposed_source_url: "https://yzb.example.edu/2027/rules",
+        status: "submitted",
+      },
+      response: new Response(null, { status: 201 }),
+    });
+    const user = userEvent.setup();
+    render(<DecisionSummary offerings={offerings} snapshot={snapshot} />);
+
+    await user.click(screen.getByRole("button", { name: "提交信息纠错" }));
+    await user.selectOptions(screen.getByLabelText("需要纠错的项目"), offerings[0]?.id ?? "");
+    await user.selectOptions(screen.getByLabelText("需要纠错的信息"), "eligibility.requirements");
+    await user.type(screen.getByLabelText("官方来源链接"), "https://yzb.example.edu/2027/rules");
+    await user.type(
+      screen.getByLabelText("情况说明"),
+      "学校官网的招生说明与当前展示的信息不一致。",
+    );
+    await user.click(screen.getByRole("button", { name: "确认提交纠错" }));
+
+    expect(await screen.findByText("纠错已提交，我们会依据官方来源复核。")).toBeInTheDocument();
+    expect(transport.POST).toHaveBeenCalledWith("/api/v1/corrections", {
+      body: {
+        explanation: "学校官网的招生说明与当前展示的信息不一致。",
+        field_key: "eligibility.requirements",
+        offering_id: offerings[0]?.id,
+        proposed_source_url: "https://yzb.example.edu/2027/rules",
+      },
+    });
+  });
+
+  it("announces a correction network failure and allows another attempt", async () => {
+    transport.POST.mockRejectedValue(new Error("network unavailable"));
+    const user = userEvent.setup();
+    render(<DecisionSummary offerings={offerings} snapshot={snapshot} />);
+
+    await user.click(screen.getByRole("button", { name: "提交信息纠错" }));
+    await user.selectOptions(screen.getByLabelText("需要纠错的项目"), offerings[0]?.id ?? "");
+    await user.selectOptions(screen.getByLabelText("需要纠错的信息"), "eligibility.requirements");
+    await user.type(screen.getByLabelText("官方来源链接"), "https://yzb.example.edu/2027/rules");
+    await user.type(screen.getByLabelText("情况说明"), "学校官网信息需要重新核对。 ");
+    await user.click(screen.getByRole("button", { name: "确认提交纠错" }));
+
+    expect(await screen.findByText("纠错暂未提交，请稍后重试。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认提交纠错" })).toBeEnabled();
   });
 });

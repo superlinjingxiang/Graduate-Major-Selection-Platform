@@ -22,7 +22,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -153,6 +155,8 @@ input {
 }
 
 .hero-copy h1,
+.match-intro h1,
+.decision-hero h1,
 .account-card h1,
 .account-panel h1,
 .loading-state h1,
@@ -164,7 +168,15 @@ input {
   max-width: 10ch;
 }
 
+.match-intro h1,
+.decision-hero h1 {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  max-width: 13ch;
+}
+
 .hero-lede,
+.match-lede,
+.decision-lede,
 .account-card > p,
 .account-panel > p,
 .error-state > p {
@@ -173,6 +185,201 @@ input {
   line-height: 1.75;
   margin: 1.5rem 0 0;
   max-width: 38rem;
+}
+
+.compact-header {
+  margin-bottom: clamp(2.5rem, 7vw, 5rem);
+}
+
+.match-shell {
+  overflow: clip;
+}
+
+.match-intro {
+  max-width: 48rem;
+}
+
+.pilot-offerings,
+.fact-section,
+.decision-layout {
+  margin-top: clamp(3rem, 7vw, 5.5rem);
+}
+
+.section-heading h2,
+.fact-form h2,
+.decision-section h2 {
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.section-copy,
+.evidence-state,
+.evidence-freshness,
+.result-offering p {
+  color: var(--gm-text-muted);
+  line-height: 1.65;
+}
+
+.offering-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 1.5rem;
+}
+
+.offering-card {
+  min-height: 13rem;
+}
+
+.offering-index {
+  color: var(--gm-brand);
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.offering-school {
+  font-weight: 700;
+  margin: 2rem 0 0.5rem;
+}
+
+.offering-card h3 {
+  font-size: 1.15rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.evidence-state {
+  font-size: 0.9rem;
+  margin: 1rem 0 0;
+}
+
+.fact-section {
+  max-width: 44rem;
+}
+
+.fact-form,
+.correction-form {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.fact-form {
+  padding: clamp(1.4rem, 4vw, 2.5rem);
+}
+
+.scope-confirmation {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  font-weight: 700;
+  gap: 0.7rem;
+  line-height: 1.5;
+}
+
+.scope-confirmation input {
+  accent-color: var(--gm-brand);
+  height: 1.15rem;
+  margin-top: 0.15rem;
+  width: 1.15rem;
+}
+
+.textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.result-page {
+  padding-bottom: clamp(3rem, 8vw, 6rem);
+}
+
+.decision-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.decision-hero,
+.decision-section,
+.result-state {
+  padding: clamp(1.4rem, 4vw, 2.5rem);
+}
+
+.decision-lede {
+  margin-bottom: 0;
+}
+
+.evidence-freshness {
+  border-top: 1px solid var(--gm-border);
+  font-size: 0.92rem;
+  margin: 1.5rem 0 0;
+  padding-top: 1rem;
+}
+
+.plain-list {
+  display: grid;
+  gap: 0.75rem;
+  line-height: 1.65;
+  margin: 1.2rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.result-offerings {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.result-offering {
+  border-left: 3px solid var(--gm-accent);
+  padding: 0.3rem 0 0.3rem 1rem;
+}
+
+.result-offering h3,
+.result-offering p {
+  margin: 0;
+}
+
+.result-offering p {
+  font-size: 0.92rem;
+  margin-top: 0.45rem;
+}
+
+.correction-toggle {
+  margin-top: 1.25rem;
+}
+
+.correction-form {
+  border-top: 1px solid var(--gm-border);
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.result-state {
+  margin: 10vh auto;
+  max-width: 38rem;
+}
+
+.result-state h1 {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  letter-spacing: -0.05em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.result-state p {
+  color: var(--gm-text-muted);
+  line-height: 1.65;
+  margin: 1rem 0 1.5rem;
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .hero-actions {
@@ -463,7 +670,8 @@ input {
 
 @media (max-width: 760px) {
   .hero-grid,
-  .foundation-grid {
+  .foundation-grid,
+  .offering-grid {
     grid-template-columns: 1fr;
   }
   .site-header {
@@ -471,6 +679,10 @@ input {
   }
   .hero-copy h1 {
     max-width: 11ch;
+  }
+
+  .page-shell {
+    padding: 1rem;
   }
 }
 

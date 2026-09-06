@@ -103,5 +103,39 @@ describe("fact form", () => {
         },
       },
     });
+    for (const [index, offeringId] of offeringIds.entries()) {
+      expect(transport.POST).toHaveBeenNthCalledWith(index + 2, "/api/v1/eligibility-assessments", {
+        body: {
+          fact_revision: 1,
+          fact_set_id: "56d1aa4c-a22e-46c5-b69d-3228f408a92a",
+          offering_id: offeringId,
+        },
+      });
+    }
+    expect(transport.POST).toHaveBeenNthCalledWith(5, "/api/v1/comparison-runs", {
+      body: {
+        fact_revision: 1,
+        fact_set_id: "56d1aa4c-a22e-46c5-b69d-3228f408a92a",
+        offering_ids: [...offeringIds],
+      },
+    });
+    expect(transport.POST).toHaveBeenNthCalledWith(6, "/api/v1/decision-snapshots", {
+      body: { comparison_run_id: "d50b61bc-a118-4be4-a0b5-e9515ed54775" },
+    });
+  });
+
+  it("keeps the user on the form and announces an API failure", async () => {
+    transport.POST.mockResolvedValue({
+      error: { detail: "service unavailable" },
+      response: new Response(null, { status: 503 }),
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText("我确认以上报考范围"));
+    await user.click(screen.getByRole("button", { name: "生成资格快照" }));
+
+    expect(await screen.findByText("暂时无法生成资格快照，请稍后重试。")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });
