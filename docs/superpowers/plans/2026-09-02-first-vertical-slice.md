@@ -10,9 +10,15 @@
 
 **需求依据：** `docs/product-requirements.md`、`docs/architecture.md`、`docs/research/pilot-scope-2027-v1.md` 和 `docs/research/validation-protocol-v1.md`。
 
-## 阶段进度检查点 — 2026-09-04
+## 完成检查点 — 2026-09-06
 
-任务 1–8 已有实现提交；任务 9 仅有测试草稿，由于页面和组件尚未实现，当前测试失败。任务 10 和发布验证仍未完成。最新检查结果、已知缺口及后续优先事项见[进度记录](../../progress/2026-09-04-first-vertical-slice.md)。本计划尚未完成。下方 Web 路径应按实际的 `apps/web/src/app`、`apps/web/src/features` 和 `apps/web/src/lib` 目录结构解析。
+任务 1–10 的代码、中文文档和隔离自动化验收已经完成，当前实现提交为 `0e64db3..184d7e3`。最新的全仓检查通过 97 个 Python 测试、35 个 Web 测试、7 个领域测试和 25 个工具测试，并通过严格类型检查、生产 Web 构建、OpenAPI 客户端漂移、Compose 与 CI 结构检查。Task 10 独立评审经过两轮修复后结论为 `Ready to merge: Yes`。详情见[2026-09-06 进度记录](../../progress/2026-09-06-first-vertical-slice.md)。
+
+本机只读诊断确认 Python 可用，但 PostgreSQL、Redis 和 S3 兼容对象存储当前未启动，因此没有把真实 PostgreSQL 迁移、运行中 `/health/ready` 或跨进程 Celery 消费写成已验证。AI、支付、移动端和真实来源采集继续关闭。下方 Web 路径按实际的 `apps/web/src/app`、`apps/web/src/features` 和 `apps/web/src/lib` 目录结构解析。
+
+## 历史阶段进度检查点 — 2026-09-04
+
+以下内容保留为当日历史状态，不代表当前工作树：任务 1–8 当时已有实现提交；任务 9 只有测试草稿，任务 10 尚未开始。原始证据见[2026-09-04 进度记录](../../progress/2026-09-04-first-vertical-slice.md)。
 
 ## 全局约束
 
