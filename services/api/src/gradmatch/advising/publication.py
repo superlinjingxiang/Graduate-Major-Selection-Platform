@@ -5,6 +5,7 @@ from datetime import datetime
 from django.db import transaction
 
 from gradmatch.accounts.models import User
+from gradmatch.accounts.roles import ADMINISTRATOR_ROLE, REVIEWER_ROLE, has_staff_role
 from gradmatch.catalog.models import ManifestEntry
 
 from .models import (
@@ -33,7 +34,7 @@ def publish_claim(
     reviewer: User,
     now: datetime,
 ) -> PublicationEvent:
-    _require_staff(reviewer)
+    _require_role(reviewer, ADMINISTRATOR_ROLE)
     claim = EvidenceClaimRevision.objects.select_for_update().get(pk=claim_id)
     latest_review = (
         ReviewDecision.objects.filter(claim=claim).order_by("-created_at", "-id").first()
@@ -42,6 +43,10 @@ def publish_claim(
         raise EvidencePublicationError("A claim requires an approved review before publication.")
     if latest_review.outcome != ReviewDecision.Outcome.APPROVED.value:
         raise EvidencePublicationError("The latest review decision must be approved.")
+    if not has_staff_role(latest_review.reviewer, REVIEWER_ROLE):
+        raise EvidencePublicationError("The latest decision requires the reviewer role.")
+    if claim.created_by is None or latest_review.reviewer.pk == claim.created_by.pk:
+        raise EvidencePublicationError("A claim requires an independent reviewer.")
     event, _ = PublicationEvent.objects.get_or_create(
         claim=claim,
         defaults={"reviewer": reviewer, "published_at": now},
@@ -56,10 +61,12 @@ def publish_rule_set(
     reviewer: User,
     now: datetime,
 ) -> RuleSetRevision:
-    _require_staff(reviewer)
+    _require_role(reviewer, ADMINISTRATOR_ROLE)
     rule_set = RuleSetRevision.objects.select_for_update().get(pk=rule_set_id)
     if rule_set.status == RuleSetRevision.Status.PUBLISHED.value:
         return rule_set
+    if rule_set.created_by is None or rule_set.created_by.pk == reviewer.pk:
+        raise EvidencePublicationError("A rule set requires publication by a separate actor.")
 
     rules = list(EligibilityRule.objects.filter(rule_set=rule_set).order_by("position"))
     if not rules:
@@ -109,6 +116,8 @@ def revise_claim(
         raise EvidencePublicationError("Only a published claim can be revised.")
     if EvidenceClaimRevision.objects.filter(supersedes=claim).exists():
         raise EvidencePublicationError("The claim already has a replacement revision.")
+    if source_document.created_by is None:
+        raise EvidencePublicationError("A revised claim requires an identified editor.")
     return EvidenceClaimRevision.objects.create(
         claim_key=claim.claim_key,
         revision=claim.revision + 1,
@@ -118,6 +127,7 @@ def revise_claim(
         normalized_value=normalized_value,
         original_value=original_value,
         source_document=source_document,
+        created_by=source_document.created_by,
     )
 
 
@@ -141,6 +151,9 @@ def _validate_evidence_namespace(
         raise FixtureIsolationError("Fixture evidence must match its reference year.")
 
 
-def _require_staff(reviewer: User) -> None:
-    if not User.objects.filter(pk=reviewer.pk, is_staff=True).exists():
-        raise EvidencePublicationError("Only staff reviewers may publish evidence or rules.")
+def _require_role(actor: User, role: str) -> None:
+    persisted = User.objects.filter(pk=actor.pk).first()
+    if persisted is None or not has_staff_role(persisted, role):
+        raise EvidencePublicationError(
+            f"Only a staff member with the {role} role may perform this publication."
+        )

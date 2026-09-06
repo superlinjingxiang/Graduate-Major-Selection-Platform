@@ -333,6 +333,33 @@ export interface components {
             /** Result Version */
             result_version: number;
         };
+        /** ConfirmedFacts */
+        ConfirmedFacts: {
+            /** Admission Pathway */
+            admission_pathway?: "unified_exam" | null;
+            /** Age 18 Or Over */
+            age_18_or_over?: boolean | null;
+            /** Cross Discipline */
+            cross_discipline?: boolean | null;
+            /** Directed Employment Confirmed */
+            directed_employment_confirmed?: boolean | null;
+            /** Education Level */
+            education_level?: ("bachelor" | "equivalent" | "other") | null;
+            /** Equivalent Education */
+            equivalent_education?: boolean | null;
+            /** Overseas Degree Certified */
+            overseas_degree_certified?: boolean | null;
+            /** Region */
+            region?: "北京" | null;
+            /** Study Mode */
+            study_mode?: "full_time" | null;
+            /** Target Year */
+            target_year?: 2027 | null;
+            /** Undergraduate Major */
+            undergraduate_major?: string | null;
+            /** Years Of Work Experience */
+            years_of_work_experience?: number | null;
+        };
         /** CorrectionCreateRequest */
         CorrectionCreateRequest: {
             /** Explanation */
@@ -462,10 +489,7 @@ export interface components {
         };
         /** FactSetCreateRequest */
         FactSetCreateRequest: {
-            /** Confirmed Facts */
-            confirmed_facts: {
-                [key: string]: unknown;
-            };
+            confirmed_facts: components["schemas"]["ConfirmedFacts"];
         };
         /** FactSetResponse */
         FactSetResponse: {

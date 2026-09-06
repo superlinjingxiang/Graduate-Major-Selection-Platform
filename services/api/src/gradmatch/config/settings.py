@@ -159,6 +159,12 @@ CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_TASK_ALWAYS_EAGER = get_bool_env("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TASK_EAGER_PROPAGATES = get_bool_env("CELERY_TASK_EAGER_PROPAGATES", default=True)
+CELERY_BEAT_SCHEDULE = {
+    "dispatch-pending-outbox-events": {
+        "task": "support.dispatch_outbox_events",
+        "schedule": 60.0,
+    }
+}
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

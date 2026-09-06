@@ -92,6 +92,158 @@
         "title": "ComparisonRunResponse",
         "type": "object"
       },
+      "ConfirmedFacts": {
+        "additionalProperties": false,
+        "properties": {
+          "admission_pathway": {
+            "anyOf": [
+              {
+                "const": "unified_exam",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admission Pathway"
+          },
+          "age_18_or_over": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age 18 Or Over"
+          },
+          "cross_discipline": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cross Discipline"
+          },
+          "directed_employment_confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directed Employment Confirmed"
+          },
+          "education_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bachelor",
+                  "equivalent",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Education Level"
+          },
+          "equivalent_education": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equivalent Education"
+          },
+          "overseas_degree_certified": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overseas Degree Certified"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "const": "北京",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "study_mode": {
+            "anyOf": [
+              {
+                "const": "full_time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Mode"
+          },
+          "target_year": {
+            "anyOf": [
+              {
+                "const": 2027,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Year"
+          },
+          "undergraduate_major": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undergraduate Major"
+          },
+          "years_of_work_experience": {
+            "anyOf": [
+              {
+                "maximum": 80,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Years Of Work Experience"
+          }
+        },
+        "title": "ConfirmedFacts",
+        "type": "object"
+      },
       "CorrectionCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -419,9 +571,7 @@
         "additionalProperties": false,
         "properties": {
           "confirmed_facts": {
-            "additionalProperties": true,
-            "title": "Confirmed Facts",
-            "type": "object"
+            "$ref": "#/components/schemas/ConfirmedFacts"
           }
         },
         "required": [
@@ -1108,6 +1258,14 @@
             "description": "Service Unavailable"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          },
+          {
+            "XSessionTokenHeaderAuth": []
+          }
+        ],
         "summary": "Ready Health"
       }
     },
@@ -1154,6 +1312,14 @@
             "description": "OK"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          },
+          {
+            "XSessionTokenHeaderAuth": []
+          }
+        ],
         "summary": "Meta"
       }
     },

@@ -32,8 +32,12 @@ from gradmatch.advising.models import (
 from gradmatch.advising.publication import publish_claim, publish_rule_set
 from gradmatch.catalog.seed import PILOT_MANIFEST_KEY
 from gradmatch.support.models import JobExecution, OutboxEvent, SnapshotUpdate
-from gradmatch.support.services import accept_correction, publish_correction
-from gradmatch.support.tasks import recompute_published_correction
+from gradmatch.support.services import (
+    accept_correction,
+    dispatch_pending_outbox_events,
+    process_recomputation_event,
+    publish_correction,
+)
 
 _NETWORK_BLOCKED = threading.Event()
 
@@ -272,8 +276,10 @@ def test_first_pilot_vertical_slice_is_safe_reproducible_and_idempotent(
         now=timezone.now(),
     )
 
-    first_recomputation = recompute_published_correction(outbox.event_key)
-    second_recomputation = recompute_published_correction(outbox.event_key)
+    assert dispatch_pending_outbox_events(now=timezone.now()) == 1
+    assert dispatch_pending_outbox_events(now=timezone.now()) == 0
+    first_recomputation = process_recomputation_event(event_key=outbox.event_key)
+    second_recomputation = process_recomputation_event(event_key=outbox.event_key)
     assert first_recomputation == second_recomputation == {
         "affected_runs": 1,
         "created_results": 1,

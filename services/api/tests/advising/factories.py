@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 
+from django.contrib.auth.models import Group
 from django.utils import timezone
 
 from gradmatch.accounts.models import User
@@ -19,18 +20,37 @@ from gradmatch.catalog.seed import PILOT_MANIFEST_KEY
 from gradmatch.ingestion.models import DataSource, IngestionRun, RawBlob, SourceFetch
 
 
-def create_reviewer() -> User:
-    return User.objects.create_user(
-        email=f"reviewer-{uuid.uuid4()}@example.test",
+def _create_staff_actor(*roles: str) -> User:
+    user = User.objects.create_user(
+        email=f"staff-{uuid.uuid4()}@example.test",
         password="review-password-123",
         is_staff=True,
     )
+    for role in roles:
+        group, _ = Group.objects.get_or_create(name=role)
+        user.groups.add(group)  # pyright: ignore[reportUnknownMemberType]
+    return user
+
+
+def create_editor() -> User:
+    return _create_staff_actor("editor")
+
+
+def create_reviewer() -> User:
+    # Existing tests use one staff actor for review and publication; assigning
+    # both explicit roles keeps those scenarios intentional.
+    return _create_staff_actor("reviewer", "administrator")
+
+
+def create_publisher() -> User:
+    return _create_staff_actor("administrator")
 
 
 def create_source_document(
     *,
     data_class: str = SourceDocumentRevision.DataClass.PRODUCTION,
     reference_year: int = 2027,
+    created_by: User | None = None,
 ) -> SourceDocumentRevision:
     unique = uuid.uuid4().hex
     source = DataSource.objects.create(
@@ -74,6 +94,7 @@ def create_source_document(
         reference_year=reference_year,
         published_at=now,
         locator="section-1",
+        created_by=created_by or create_editor(),
     )
 
 
@@ -94,6 +115,7 @@ def create_claim(
         normalized_value=normalized_value,
         original_value=str(normalized_value),
         source_document=source_document,
+        created_by=source_document.created_by,
     )
 
 
@@ -111,6 +133,7 @@ def create_rule_set(
     namespace: str = RuleSetRevision.Namespace.PRODUCTION,
     reference_year: int | None = None,
     coverage_complete: bool = True,
+    created_by: User | None = None,
 ) -> RuleSetRevision:
     manifest = CoverageManifest.objects.get(key=PILOT_MANIFEST_KEY)
     return RuleSetRevision.objects.create(
@@ -122,6 +145,7 @@ def create_rule_set(
         manifest=manifest,
         status=RuleSetRevision.Status.DRAFT,
         coverage_complete=coverage_complete,
+        created_by=created_by or create_editor(),
     )
 
 

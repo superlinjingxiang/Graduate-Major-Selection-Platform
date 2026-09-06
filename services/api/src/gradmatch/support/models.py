@@ -136,6 +136,12 @@ class OutboxEvent(models.Model):
         null=True,
         blank=True,
     )
+    dispatch_attempts: models.PositiveIntegerField[int, int] = models.PositiveIntegerField(
+        default=0
+    )
+    last_dispatch_attempt_at: models.DateTimeField[
+        datetime | None, datetime | None
+    ] = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["published_at", "id"]

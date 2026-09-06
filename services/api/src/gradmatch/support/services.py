@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import cast
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from gradmatch.accounts.models import User
+from gradmatch.accounts.roles import ADMINISTRATOR_ROLE, REVIEWER_ROLE, has_staff_role
 from gradmatch.advising.comparison import recompute_comparison_run
 from gradmatch.advising.models import (
     ComparisonRun,
@@ -30,6 +31,7 @@ from .models import AuditEvent, CorrectionCase, JobExecution, OutboxEvent, Snaps
 
 RECOMPUTATION_HANDLER = "support.recompute_published_correction"
 CORRECTION_PUBLICATION_EVENT = "correction.claim_published"
+OUTBOX_DISPATCH_RETRY_AFTER = timedelta(minutes=5)
 
 
 class CorrectionWorkflowError(RuntimeError):
@@ -71,7 +73,7 @@ def accept_correction(
     reviewer_note: str,
     now: datetime,
 ) -> CorrectionCase:
-    _require_staff(reviewer)
+    _require_role(reviewer, REVIEWER_ROLE)
     case = CorrectionCase.objects.select_for_update().select_related("offering").get(
         pk=correction_id
     )
@@ -84,6 +86,10 @@ def accept_correction(
         raise CorrectionWorkflowError(
             "A production correction requires current-year production evidence."
         )
+    if source_document.created_by is None:
+        raise CorrectionWorkflowError("A correction replacement requires an identified editor.")
+    if source_document.created_by.pk == reviewer.pk:
+        raise CorrectionWorkflowError("A correction replacement requires an independent reviewer.")
     original_claim = (
         EvidenceClaimRevision.objects.filter(
             offering=case.offering,
@@ -134,7 +140,7 @@ def publish_correction(
     reviewer: User,
     now: datetime,
 ) -> OutboxEvent:
-    _require_staff(reviewer)
+    _require_role(reviewer, ADMINISTRATOR_ROLE)
     case = CorrectionCase.objects.select_for_update().select_related(
         "accepted_claim__supersedes"
     ).get(pk=correction_id)
@@ -203,24 +209,44 @@ def _create_revalidation_rule_sets(
     reviewer: User,
     now: datetime,
 ) -> list[int]:
-    published_rule_sets = list(select_published_rule_sets_for_update(superseded_claim))
+    # The offering row is the stable serialization point for every production
+    # rule-set family that can reference one of its claims. Unlike an immutable
+    # revision row, it remains the same while newer revisions are appended.
+    AnnualOffering.objects.select_for_update().get(pk=replacement_claim.offering.pk)
+    affected_keys = sorted(
+        set(
+            select_published_rule_sets_for_update(superseded_claim).values_list(
+                "key", flat=True
+            )
+        )
+    )
     revised_ids: list[int] = []
-    for previous in published_rule_sets:
-        latest = (
-            RuleSetRevision.objects.filter(key=previous.key)
+    for key in affected_keys:
+        previous = (
+            RuleSetRevision.objects.select_for_update()
+            .filter(
+                key=key,
+                namespace=RuleSetRevision.Namespace.PRODUCTION.value,
+                status=RuleSetRevision.Status.PUBLISHED.value,
+            )
             .order_by("-revision", "-id")
             .first()
         )
-        next_revision = previous.revision + 1 if latest is None else latest.revision + 1
+        if previous is None or not RuleEvidenceUsage.objects.filter(
+            rule__rule_set=previous,
+            claim=superseded_claim,
+        ).exists():
+            continue
         revised = RuleSetRevision.objects.create(
             key=previous.key,
-            revision=next_revision,
+            revision=previous.revision + 1,
             namespace=previous.namespace,
             target_year=previous.target_year,
             reference_year=previous.reference_year,
             manifest=previous.manifest,
             status=RuleSetRevision.Status.DRAFT.value,
             coverage_complete=False,
+            created_by=replacement_claim.created_by,
         )
         for previous_rule in EligibilityRule.objects.filter(rule_set=previous).order_by(
             "position", "id"
@@ -276,7 +302,7 @@ def reject_correction(
     reviewer_note: str,
     now: datetime,
 ) -> CorrectionCase:
-    _require_staff(reviewer)
+    _require_role(reviewer, REVIEWER_ROLE)
     case = CorrectionCase.objects.select_for_update().get(pk=correction_id)
     if case.status != CorrectionCase.Status.SUBMITTED.value:
         raise CorrectionWorkflowError("Only a submitted correction can be rejected.")
@@ -291,6 +317,42 @@ def reject_correction(
         metadata={"reviewed_at": now.isoformat()},
     )
     return case
+
+
+def dispatch_pending_outbox_events(*, now: datetime, limit: int = 50) -> int:
+    """Lease and enqueue pending events; unfinished leases become retryable."""
+    retry_before = now - OUTBOX_DISPATCH_RETRY_AFTER
+    with transaction.atomic():
+        events = list(
+            OutboxEvent.objects.select_for_update(skip_locked=True)
+            .filter(
+                processing_state=OutboxEvent.ProcessingState.PENDING.value,
+                event_type=CORRECTION_PUBLICATION_EVENT,
+            )
+            .filter(
+                Q(last_dispatch_attempt_at__isnull=True)
+                | Q(last_dispatch_attempt_at__lte=retry_before)
+            )
+            .order_by("published_at", "id")[:limit]
+        )
+        for event in events:
+            event.dispatch_attempts += 1
+            event.last_dispatch_attempt_at = now
+            event.save(update_fields=("dispatch_attempts", "last_dispatch_attempt_at"))
+
+    from .tasks import recompute_published_correction
+
+    dispatched = 0
+    for event in events:
+        try:
+            recompute_published_correction.delay(  # pyright: ignore[reportCallIssue]
+                event.event_key
+            )
+        except Exception:
+            # The lease expires so beat can retry after a broker outage or worker crash.
+            continue
+        dispatched += 1
+    return dispatched
 
 
 @transaction.atomic
@@ -339,19 +401,18 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
         if not created:
             continue
         created_results += 1
-        snapshot = (
-            DecisionSnapshot.objects.filter(comparison_result=old_result)
-            .order_by("-created_at", "-id")
-            .first()
+        snapshots = DecisionSnapshot.objects.filter(comparison_result__run=run).order_by(
+            "created_at", "id"
         )
-        if snapshot is not None:
+        for snapshot in snapshots:
+            pinned_result = snapshot.comparison_result
             _, update_created = SnapshotUpdate.objects.get_or_create(
                 outbox_event=event,
                 old_snapshot=snapshot,
                 defaults={
-                    "old_result": old_result,
+                    "old_result": pinned_result,
                     "new_result": new_result,
-                    "diff": _comparison_diff(old_result, new_result),
+                    "diff": _comparison_diff(pinned_result, new_result),
                 },
             )
             created_snapshot_updates += int(update_created)
@@ -369,6 +430,13 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
     event.processing_state = OutboxEvent.ProcessingState.PROCESSED.value
     event.processed_at = completed_at
     event.save(update_fields=("processing_state", "processed_at"))
+    AuditEvent.objects.create(
+        actor=None,
+        action="correction.recomputation_succeeded",
+        target_type="outbox_event",
+        target_id=str(event.pk),
+        metadata={**result, "completed_at": completed_at.isoformat()},
+    )
     return _execution_result(result)
 
 
@@ -425,6 +493,9 @@ def _payload_int(payload: dict[str, object], key: str) -> int:
     return value
 
 
-def _require_staff(reviewer: User) -> None:
-    if not User.objects.filter(pk=reviewer.pk, is_staff=True).exists():
-        raise CorrectionWorkflowError("Only staff reviewers may change correction status.")
+def _require_role(actor: User, role: str) -> None:
+    persisted = User.objects.filter(pk=actor.pk).first()
+    if persisted is None or not has_staff_role(persisted, role):
+        raise CorrectionWorkflowError(
+            f"Only a staff member with the {role} role may change correction status."
+        )

@@ -36,6 +36,12 @@ class SourceDocumentRevision(models.Model):
     reference_year: models.PositiveSmallIntegerField[int, int] = models.PositiveSmallIntegerField()
     published_at: models.DateTimeField[datetime, datetime] = models.DateTimeField()
     locator: models.CharField[str, str] = models.CharField(max_length=500, blank=True)
+    created_by: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="created_source_document_revisions",
+    )
     created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -61,6 +67,7 @@ class SourceDocumentRevision(models.Model):
                 persisted.reference_year == self.reference_year,
                 persisted.published_at == self.published_at,
                 persisted.locator == self.locator,
+                persisted.created_by == self.created_by,
             )
             if not all(immutable_values):
                 raise PublishedRevisionImmutableError(
@@ -99,6 +106,12 @@ class EvidenceClaimRevision(models.Model):
             related_name="claim_revisions",
         )
     )
+    created_by: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="created_evidence_claim_revisions",
+    )
     created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -122,6 +135,7 @@ class EvidenceClaimRevision(models.Model):
                 persisted.normalized_value == self.normalized_value,
                 persisted.original_value == self.original_value,
                 persisted.source_document == self.source_document,
+                persisted.created_by == self.created_by,
             )
             if not all(immutable_values):
                 raise PublishedRevisionImmutableError(
@@ -213,6 +227,12 @@ class RuleSetRevision(models.Model):
         on_delete=models.PROTECT,
         related_name="published_rule_set_revisions",
     )
+    created_by: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="created_rule_set_revisions",
+    )
     created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -246,6 +266,7 @@ class RuleSetRevision(models.Model):
                     persisted.coverage_complete == self.coverage_complete,
                     persisted.published_at == self.published_at,
                     persisted.published_by == self.published_by,
+                    persisted.created_by == self.created_by,
                 )
                 if not all(immutable_values):
                     raise PublishedRevisionImmutableError(

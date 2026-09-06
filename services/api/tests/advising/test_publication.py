@@ -4,6 +4,7 @@ import pytest
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from gradmatch.accounts.models import User
 from gradmatch.advising.models import (
     EligibilityRule,
     EvidenceClaimRevision,
@@ -25,11 +26,58 @@ from gradmatch.catalog.models import AnnualOffering
 from .factories import (
     approve_claim,
     create_claim,
+    create_editor,
+    create_publisher,
     create_reviewer,
     create_rule_set,
     create_rule_with_evidence,
     create_source_document,
 )
+
+
+@pytest.mark.django_db
+def test_claim_creator_cannot_approve_their_own_p0_claim() -> None:
+    editor = create_reviewer()
+    publisher = create_publisher()
+    claim = create_claim(create_source_document(created_by=editor))
+    ReviewDecision.objects.create(
+        claim=claim,
+        reviewer=editor,
+        outcome=ReviewDecision.Outcome.APPROVED,
+        note="Self review must not authorize publication.",
+    )
+
+    with pytest.raises(EvidencePublicationError, match="independent reviewer"):
+        publish_claim(claim_id=claim.pk, reviewer=publisher, now=timezone.now())
+
+
+@pytest.mark.django_db
+def test_claim_publication_requires_explicit_reviewer_and_administrator_roles() -> None:
+    editor = create_editor()
+    claim = create_claim(create_source_document(created_by=editor))
+    unassigned_staff = User.objects.create_user(
+        email="unassigned-staff@example.test",
+        password="strong-password-123",
+        is_staff=True,
+    )
+    ReviewDecision.objects.create(
+        claim=claim,
+        reviewer=unassigned_staff,
+        outcome=ReviewDecision.Outcome.APPROVED,
+        note="A staff flag alone is not a reviewer role.",
+    )
+
+    with pytest.raises(EvidencePublicationError, match="reviewer role"):
+        publish_claim(
+            claim_id=claim.pk,
+            reviewer=create_publisher(),
+            now=timezone.now(),
+        )
+
+    reviewer = create_reviewer()
+    approve_claim(claim, reviewer)
+    with pytest.raises(EvidencePublicationError, match="administrator role"):
+        publish_claim(claim_id=claim.pk, reviewer=unassigned_staff, now=timezone.now())
 
 
 @pytest.mark.django_db

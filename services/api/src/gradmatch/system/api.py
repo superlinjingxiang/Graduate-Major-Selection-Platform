@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import DatabaseError, connections
 from django.http import HttpRequest
 from ninja import NinjaAPI, Schema, Status
+from ninja.errors import HttpError
 from ninja.security import django_auth
 from redis import Redis
 
@@ -64,20 +65,26 @@ def live_health(request: HttpRequest) -> LiveStatusResponse:
 
 @api.get(
     "/health/ready",
+    auth=[django_auth, x_session_token_header_auth],
     response={200: ReadinessResponse, 503: ReadinessResponse},
     operation_id="get_readiness",
 )
 def ready_health(request: HttpRequest) -> Status[ReadinessResponse]:
-    del request
+    _require_staff(request)
     checks = check_readiness()
     status: HealthStatus = "ok" if all(value == "ok" for value in checks.values()) else "error"
     http_status = 200 if status == "ok" else 503
     return Status(http_status, ReadinessResponse(status=status, checks=checks))
 
 
-@api.get("/meta", response=MetaResponse, operation_id="get_metadata")
+@api.get(
+    "/meta",
+    auth=[django_auth, x_session_token_header_auth],
+    response=MetaResponse,
+    operation_id="get_metadata",
+)
 def meta(request: HttpRequest) -> MetaResponse:
-    del request
+    _require_staff(request)
     return MetaResponse(
         name=settings.GRADMATCH_APP_NAME,
         environment=settings.GRADMATCH_ENVIRONMENT,
@@ -95,6 +102,17 @@ def current_user(request: HttpRequest) -> CurrentUserResponse:
     request_auth = cast(object, getattr(request, "auth", None))
     user = cast(User, request_auth)
     return CurrentUserResponse(id=user.pk, email=user.email)
+
+
+def _require_staff(request: HttpRequest) -> User:
+    request_auth = cast(object, getattr(request, "auth", None))
+    if not isinstance(request_auth, User) or not User.objects.filter(
+        pk=request_auth.pk,
+        is_active=True,
+        is_staff=True,
+    ).exists():
+        raise HttpError(403, "Staff access is required.")
+    return request_auth
 
 
 def check_readiness() -> dict[str, HealthStatus]:

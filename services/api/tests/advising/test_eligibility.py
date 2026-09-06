@@ -96,6 +96,7 @@ def test_rules_from_another_manifest_cannot_drive_pilot_eligibility() -> None:
         target_year=2027,
         manifest=alternate_manifest,
         coverage_complete=True,
+        created_by=claim.created_by,
     )
     create_rule_with_evidence(rule_set, claim)
     publish_rule_set(rule_set_id=rule_set.pk, reviewer=reviewer, now=timezone.now())

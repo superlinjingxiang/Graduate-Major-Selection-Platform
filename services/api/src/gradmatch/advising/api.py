@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import cast
+from typing import Annotated, Literal, cast
 from uuid import UUID
 
 from allauth.account.models import EmailAddress
@@ -12,7 +12,7 @@ from django.utils import timezone
 from ninja import Router, Schema, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field, StrictBool, StrictInt, StringConstraints
 
 from gradmatch.accounts.authentication import x_session_token_header_auth
 from gradmatch.accounts.models import User
@@ -45,28 +45,34 @@ from .models import (
 
 router = Router(tags=["advising"])
 
-ALLOWED_FACT_KEYS = frozenset(
-    {
-        "age_18_or_over",
-        "target_year",
-        "region",
-        "study_mode",
-        "admission_pathway",
-        "education_level",
-        "undergraduate_major",
-        "equivalent_education",
-        "cross_discipline",
-        "years_of_work_experience",
-        "overseas_degree_certified",
-        "directed_employment_confirmed",
-    }
-)
+NormalizedText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=160),
+]
+NonNegativeYears = Annotated[StrictInt, Field(ge=0, le=80)]
+
+
+class ConfirmedFacts(Schema):
+    model_config = ConfigDict(extra="forbid")
+
+    age_18_or_over: StrictBool | None = None
+    target_year: Literal[2027] | None = None
+    region: Literal["北京"] | None = None
+    study_mode: Literal["full_time"] | None = None
+    admission_pathway: Literal["unified_exam"] | None = None
+    education_level: Literal["bachelor", "equivalent", "other"] | None = None
+    undergraduate_major: NormalizedText | None = None
+    equivalent_education: StrictBool | None = None
+    cross_discipline: StrictBool | None = None
+    years_of_work_experience: NonNegativeYears | None = None
+    overseas_degree_certified: StrictBool | None = None
+    directed_employment_confirmed: StrictBool | None = None
 
 
 class FactSetCreateRequest(Schema):
     model_config = ConfigDict(extra="forbid")
 
-    confirmed_facts: dict[str, object]
+    confirmed_facts: ConfirmedFacts
 
 
 class FactSetResponse(Schema):
@@ -144,9 +150,10 @@ def create_fact_set(
     response: HttpResponse,
     payload: FactSetCreateRequest,
 ) -> Status[FactSetResponse]:
-    unknown_keys = sorted(set(payload.confirmed_facts) - ALLOWED_FACT_KEYS)
-    if unknown_keys:
-        raise HttpError(422, f"Unknown confirmed fact keys: {', '.join(unknown_keys)}")
+    confirmed_facts = cast(
+        dict[str, object],
+        payload.confirmed_facts.model_dump(exclude_none=True),
+    )
 
     request_user = cast(object, getattr(request, "user", None))
     owner = request_user if isinstance(request_user, User) else None
@@ -159,8 +166,8 @@ def create_fact_set(
         revision = FactSetRevision.objects.create(
             fact_set=fact_set,
             version=1,
-            confirmed_facts=payload.confirmed_facts,
-            input_hash=canonical_facts_hash(payload.confirmed_facts),
+            confirmed_facts=confirmed_facts,
+            input_hash=canonical_facts_hash(confirmed_facts),
         )
     if guest_token is not None:
         set_guest_capability_cookie(response, token=guest_token)

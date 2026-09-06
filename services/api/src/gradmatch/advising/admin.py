@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from gradmatch.system.admin import ReadOnlyHistoryAdmin
+
 from .models import (
     ComparisonAssessmentUsage,
     ComparisonRun,
@@ -35,5 +37,6 @@ admin.site.register(  # pyright: ignore[reportUnknownMemberType]
         RuleSetRevision,
         EligibilityRule,
         RuleEvidenceUsage,
-    )
+    ),
+    ReadOnlyHistoryAdmin,
 )

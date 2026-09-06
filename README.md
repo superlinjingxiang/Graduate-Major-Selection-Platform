@@ -67,7 +67,7 @@ pnpm native:worker
 pnpm native:beat
 ```
 
-Celery 任务入口和幂等重算已经实现；定时调度是否实际触发仍取决于 worker、beat、Redis 以及已配置的调度项，不能仅凭进程启动推断业务事件已自动消费。
+Celery beat 每分钟扫描事务发件箱，使用带超时的投递租约把待处理事件交给 worker；broker 或 worker 故障后可重新投递，业务处理器负责幂等。跨进程自动消费仍需 worker、beat 与 Redis 同时在线，并应以作业和审计记录确认结果。
 
 ### 4. 启动 Web
 
@@ -79,13 +79,13 @@ pnpm --filter @gradmatch/web dev
 
 浏览器打开 `http://localhost:3000`。Next.js 会把 `/api/*`、`/_allauth/*` 和 `/accounts/*` 转发给本机 Django，因此产品页面继续使用同源 Cookie 与统一 CSRF 处理。本机 Admin 直接访问 `http://localhost:8000/admin/`；静态文件也由 Django 的 8000 端口提供。
 
-后端启动后可在终端验证内部就绪接口：
+公开存活检查只返回粗粒度状态：
 
 ```powershell
-Invoke-RestMethod http://localhost:8000/api/v1/health/ready
+Invoke-RestMethod http://localhost:8000/api/v1/health/live
 ```
 
-就绪接口用于开发和运维，不应放到普通用户页面。
+`/api/v1/health/ready` 与 `/api/v1/meta` 需要工作人员会话，仅供内部开发和运维。无需登录的本机依赖诊断使用 `pnpm status:native`，不要把详细就绪信息放到普通用户页面。
 
 ## 常用检查命令
 

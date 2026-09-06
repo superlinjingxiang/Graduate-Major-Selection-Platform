@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 from celery import shared_task  # pyright: ignore[reportUnknownVariableType]
+from django.utils import timezone
 
-from .services import process_recomputation_event
+from .services import dispatch_pending_outbox_events, process_recomputation_event
+
+
+@shared_task(name="support.dispatch_outbox_events")
+def dispatch_outbox_events() -> int:
+    return dispatch_pending_outbox_events(now=timezone.now())
 
 
 @shared_task(name="support.recompute_published_correction")

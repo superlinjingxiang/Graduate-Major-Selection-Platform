@@ -213,3 +213,25 @@ def test_fixture_evidence_cannot_be_accepted_as_a_production_correction(
 
     assert CorrectionCase.objects.get(pk=correction_id).status == "submitted"
     assert EvidenceClaimRevision.objects.filter(claim_key=original.claim_key).count() == 1
+
+
+@pytest.mark.django_db
+def test_correction_editor_cannot_review_their_own_replacement(client: Client) -> None:
+    reviewer = create_reviewer()
+    original = create_claim(create_source_document(), normalized_value=True)
+    approve_claim(original, reviewer)
+    publish_claim(claim_id=original.pk, reviewer=reviewer, now=timezone.now())
+    correction_id, _ = submit_correction(client)
+
+    with pytest.raises(CorrectionWorkflowError, match="independent reviewer"):
+        accept_correction(
+            correction_id=correction_id,
+            reviewer=reviewer,
+            source_document=create_source_document(created_by=reviewer),
+            normalized_value=False,
+            original_value="false",
+            reviewer_note="Self review must not be accepted.",
+            now=timezone.now(),
+        )
+
+    assert CorrectionCase.objects.get(pk=correction_id).status == "submitted"

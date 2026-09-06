@@ -50,8 +50,48 @@ def test_fact_set_api_rejects_unknown_fact_keys(client: Client) -> None:
     )
 
     assert response.status_code == 422
-    assert "secret_score" in response.json()["detail"]
+    assert "secret_score" in str(response.json()["detail"])
     assert FactSet.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "invalid_facts",
+    [
+        {"target_year": "2027"},
+        {"region": 42},
+        {"study_mode": "weekend"},
+        {"admission_pathway": "recommendation"},
+        {"education_level": "doctorate"},
+        {"cross_discipline": "false"},
+        {"years_of_work_experience": -1},
+        {"undergraduate_major": "   "},
+    ],
+)
+def test_fact_set_api_rejects_values_outside_the_typed_fact_contract(
+    client: Client,
+    invalid_facts: dict[str, object],
+) -> None:
+    response = client.post(
+        "/api/v1/fact-sets",
+        data={"confirmed_facts": invalid_facts},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+    assert FactSet.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_fact_set_api_normalizes_text_before_hashing(client: Client) -> None:
+    response = client.post(
+        "/api/v1/fact-sets",
+        data={"confirmed_facts": {"undergraduate_major": "  软件工程  "}},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["confirmed_facts"] == {"undergraduate_major": "软件工程"}
 
 
 @pytest.mark.django_db
