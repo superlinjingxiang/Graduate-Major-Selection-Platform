@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 from typing import cast
 
 import pytest
@@ -30,6 +31,15 @@ from gradmatch.catalog.seed import PILOT_MANIFEST_KEY
 from gradmatch.support.models import JobExecution, OutboxEvent, SnapshotUpdate
 from gradmatch.support.services import accept_correction, publish_correction
 from gradmatch.support.tasks import recompute_published_correction
+
+
+@pytest.fixture(autouse=True)
+def block_external_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_network_connection(*args: object, **kwargs: object) -> socket.socket:
+        del args, kwargs
+        raise AssertionError("The pilot vertical slice must not open a network connection.")
+
+    monkeypatch.setattr(socket, "create_connection", fail_network_connection)
 
 
 def _post_json(client: Client, path: str, payload: dict[str, object]):

@@ -5,9 +5,11 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from gradmatch.advising.models import (
+    EligibilityRule,
     EvidenceClaimRevision,
     PublishedRevisionImmutableError,
     ReviewDecision,
+    RuleEvidenceUsage,
     RuleSetRevision,
     SourceDocumentRevision,
 )
@@ -18,6 +20,7 @@ from gradmatch.advising.publication import (
     publish_rule_set,
     revise_claim,
 )
+from gradmatch.catalog.models import AnnualOffering
 
 from .factories import (
     approve_claim,
@@ -89,6 +92,35 @@ def test_production_rule_requires_published_current_year_evidence() -> None:
     create_rule_with_evidence(rule_set, claim)
 
     with pytest.raises(EvidencePublicationError, match="published claim"):
+        publish_rule_set(rule_set_id=rule_set.pk, reviewer=reviewer, now=timezone.now())
+
+
+@pytest.mark.django_db
+def test_rule_set_cannot_mix_evidence_from_different_offerings() -> None:
+    reviewer = create_reviewer()
+    first_claim = create_claim(create_source_document())
+    second_claim = create_claim(
+        create_source_document(),
+        offering=AnnualOffering.objects.get(pk="ao_2027_bit_085404_ft_unified_plan01"),
+    )
+    for claim in (first_claim, second_claim):
+        approve_claim(claim, reviewer)
+        publish_claim(claim_id=claim.pk, reviewer=reviewer, now=timezone.now())
+
+    rule_set = create_rule_set()
+    create_rule_with_evidence(rule_set, first_claim)
+    second_rule = EligibilityRule.objects.create(
+        rule_set=rule_set,
+        key="second-offering-rule",
+        position=2,
+        fact_key="second_fact",
+        operator=EligibilityRule.Operator.EQUALS,
+        expected_value=True,
+        failure_reason_code="second_rule_failed",
+    )
+    RuleEvidenceUsage.objects.create(rule=second_rule, claim=second_claim)
+
+    with pytest.raises(EvidencePublicationError, match="one offering"):
         publish_rule_set(rule_set_id=rule_set.pk, reviewer=reviewer, now=timezone.now())
 
 

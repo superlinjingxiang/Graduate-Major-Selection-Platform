@@ -38,6 +38,8 @@ python -m uv --directory services/api sync --all-groups
 
 `.env.example` 默认指向 `localhost:5432`、`localhost:6379`、`localhost:9000`、API 的 `localhost:8000` 和 Web 的 `localhost:3000`。复制后请把占位密码改为本机服务的实际凭据；`.env` 不得提交。
 
+`pnpm native:*` 启动器会从仓库根目录读取 `.env`，且不会覆盖已由当前进程显式设置的环境变量。因此依赖诊断、迁移、API 和任务进程使用同一套本机连接配置；普通 Django 模块导入不会隐式加载本地文件。
+
 ### 2. 检查本机依赖
 
 ```powershell
@@ -51,21 +53,18 @@ pnpm status:native
 在第一个 PowerShell 窗口执行迁移和 API：
 
 ```powershell
-Set-Location services/api
-.\.venv\Scripts\python.exe manage.py migrate
-.\.venv\Scripts\python.exe -m uvicorn gradmatch.config.asgi:application --host 127.0.0.1 --port 8000 --reload
+pnpm native:migrate
+pnpm native:api
 ```
 
 在第二、第三个窗口分别启动 Celery worker 和 beat。Windows 开发环境的 worker 使用 `solo` 池：
 
 ```powershell
-Set-Location services/api
-.\.venv\Scripts\python.exe -m celery -A gradmatch worker --loglevel=INFO --pool=solo
+pnpm native:worker
 ```
 
 ```powershell
-Set-Location services/api
-.\.venv\Scripts\python.exe -m celery -A gradmatch beat --loglevel=INFO
+pnpm native:beat
 ```
 
 Celery 任务入口和幂等重算已经实现；定时调度是否实际触发仍取决于 worker、beat、Redis 以及已配置的调度项，不能仅凭进程启动推断业务事件已自动消费。
@@ -78,7 +77,7 @@ Celery 任务入口和幂等重算已经实现；定时调度是否实际触发�
 pnpm --filter @gradmatch/web dev
 ```
 
-浏览器打开 `http://localhost:3000`。Next.js 会把 `/api/*`、`/_allauth/*`、`/accounts/*`、`/admin/*`、`/static/*` 和 `/media/*` 转发给本机 Django，因此浏览器继续使用同源 Cookie 与统一 CSRF 处理。
+浏览器打开 `http://localhost:3000`。Next.js 会把 `/api/*`、`/_allauth/*` 和 `/accounts/*` 转发给本机 Django，因此产品页面继续使用同源 Cookie 与统一 CSRF 处理。本机 Admin 直接访问 `http://localhost:8000/admin/`；静态文件也由 Django 的 8000 端口提供。
 
 后端启动后可在终端验证内部就绪接口：
 

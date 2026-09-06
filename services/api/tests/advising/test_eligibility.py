@@ -15,7 +15,7 @@ from gradmatch.advising.models import (
     SourceDocumentRevision,
 )
 from gradmatch.advising.publication import FixtureIsolationError, publish_claim, publish_rule_set
-from gradmatch.catalog.models import AnnualOffering
+from gradmatch.catalog.models import AnnualOffering, CoverageManifest, ManifestEntry
 from gradmatch.catalog.seed import ENGINEERING_SLICE_OFFERING_IDS
 
 from .factories import (
@@ -68,6 +68,48 @@ def test_current_engineering_slice_requires_confirmation_until_rules_publish() -
         [{"code": "rule_unpublished", "fact_key": None, "rule_key": None}],
     ]
     assert all(item.rule_set is None for item in assessments)
+
+
+@pytest.mark.django_db
+def test_rules_from_another_manifest_cannot_drive_pilot_eligibility() -> None:
+    reviewer = create_reviewer()
+    offering = AnnualOffering.objects.get(pk="ao_2027_bupt_081200_ft_unified_plan01")
+    alternate_manifest = CoverageManifest.objects.create(
+        key="alternate-2027-manifest",
+        version=1,
+        target_year=2027,
+        scope={"purpose": "regression-test"},
+        frozen_at=timezone.now(),
+    )
+    ManifestEntry.objects.create(
+        manifest=alternate_manifest,
+        offering=offering,
+        position=1,
+    )
+    claim = create_claim(create_source_document(), offering=offering)
+    approve_claim(claim, reviewer)
+    publish_claim(claim_id=claim.pk, reviewer=reviewer, now=timezone.now())
+    rule_set = RuleSetRevision.objects.create(
+        key="alternate-manifest-rules",
+        revision=1,
+        namespace=RuleSetRevision.Namespace.PRODUCTION,
+        target_year=2027,
+        manifest=alternate_manifest,
+        coverage_complete=True,
+    )
+    create_rule_with_evidence(rule_set, claim)
+    publish_rule_set(rule_set_id=rule_set.pk, reviewer=reviewer, now=timezone.now())
+
+    assessment = assess_eligibility(
+        offering=offering,
+        fact_revision=create_fact_revision({"sample_fact": True}),
+    )
+
+    assert assessment.status == EligibilityAssessment.Status.NEEDS_CONFIRMATION.value
+    assert assessment.rule_set is None
+    assert assessment.reasons == [
+        {"code": "rule_unpublished", "fact_key": None, "rule_key": None}
+    ]
 
 
 @pytest.mark.django_db

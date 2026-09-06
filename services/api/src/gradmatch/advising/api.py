@@ -4,6 +4,7 @@ from datetime import date, datetime
 from typing import cast
 from uuid import UUID
 
+from allauth.account.models import EmailAddress
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -311,6 +312,15 @@ def claim_snapshot(
     user = _request_user(request)
     if guest_session is None or token is None or user is None:
         raise HttpError(404, "Decision snapshot not found.")
+    if not request_can_access_guest_session(
+        request=request,
+        guest_session=guest_session,
+        user=user,
+        now=timezone.now(),
+    ):
+        raise HttpError(404, "Decision snapshot not found.")
+    if not EmailAddress.objects.filter(user=user, verified=True, primary=True).exists():
+        raise HttpError(403, "A verified primary email is required.")
     try:
         claim_guest_session(
             guest_session_id=guest_session.pk,

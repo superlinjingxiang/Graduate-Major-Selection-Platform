@@ -7,7 +7,28 @@ import {
   formatNativeStatus,
   inspectNativeStatus,
   loadNativeEnvironment,
+  resolveNativePythonRuntime,
 } from "./native-status.mjs";
+
+test("native runtime resolution never falls back to uv", () => {
+  const runtime = resolveNativePythonRuntime({
+    commandExists: (command) => command === "python3",
+    exists: () => false,
+    platform: "win32",
+    root: "E:/GradMatch",
+  });
+
+  assert.deepEqual(runtime, { command: "python3", prefixArgs: [] });
+  assert.equal(
+    resolveNativePythonRuntime({
+      commandExists: () => false,
+      exists: () => false,
+      platform: "win32",
+      root: "E:/GradMatch",
+    }),
+    null,
+  );
+});
 
 test("environment values override .env while missing values use native defaults", () => {
   const environment = loadNativeEnvironment({

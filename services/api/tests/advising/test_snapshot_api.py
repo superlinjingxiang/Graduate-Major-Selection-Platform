@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from allauth.account.models import EmailAddress
 from django.test import Client
 
 from gradmatch.accounts.models import User
@@ -72,6 +73,16 @@ def test_snapshot_claim_requires_login_and_the_valid_capability(client: Client) 
         password="strong-password-123",
     )
     client.force_login(user)
+    unverified = client.post(f"/api/v1/decision-snapshots/{snapshot_id}/claim")
+    assert unverified.status_code == 403
+    assert GuestSession.objects.get().owner is None
+
+    EmailAddress.objects.create(
+        user=user,
+        email=user.email,
+        verified=True,
+        primary=True,
+    )
     claimed = client.post(f"/api/v1/decision-snapshots/{snapshot_id}/claim")
 
     assert claimed.status_code == 200

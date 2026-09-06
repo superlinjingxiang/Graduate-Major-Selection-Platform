@@ -75,6 +75,7 @@ def assess_eligibility(
 def _find_production_rule_set(offering: AnnualOffering) -> RuleSetRevision | None:
     return (
         RuleSetRevision.objects.filter(
+            manifest__key=PILOT_MANIFEST_KEY,
             manifest__entries__offering=offering,
             rules__evidence_usages__claim__offering=offering,
             namespace=RuleSetRevision.Namespace.PRODUCTION.value,

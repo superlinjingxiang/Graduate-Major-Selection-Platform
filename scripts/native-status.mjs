@@ -4,8 +4,6 @@ import { createConnection } from "node:net";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { resolvePythonRuntime } from "./python-runtime.mjs";
-
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
 const apiRoot = path.join(workspaceRoot, "services", "api");
 
@@ -61,6 +59,35 @@ const pythonProbes = Object.freeze({
   ].join("; "),
 });
 
+function defaultCommandExists(command) {
+  const result = spawnSync(command, ["--version"], {
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  return !result.error && result.status === 0;
+}
+
+export function resolveNativePythonRuntime(options = {}) {
+  const {
+    commandExists = defaultCommandExists,
+    exists = existsSync,
+    platform = process.platform,
+    root = workspaceRoot,
+  } = options;
+  const virtualenvPython = path.join(
+    root,
+    "services",
+    "api",
+    ".venv",
+    platform === "win32" ? "Scripts/python.exe" : "bin/python",
+  );
+  if (exists(virtualenvPython)) return { command: virtualenvPython, prefixArgs: [] };
+
+  const candidates = platform === "win32" ? ["python", "python3"] : ["python3", "python"];
+  const command = candidates.find((candidate) => commandExists(candidate));
+  return command ? { command, prefixArgs: [] } : null;
+}
+
 function parseEnvText(envText) {
   const parsed = {};
   for (const rawLine of envText.split(/\r?\n/u)) {
@@ -86,13 +113,18 @@ function parseEnvText(envText) {
   return parsed;
 }
 
+export function loadNativeProcessEnvironment(options = {}) {
+  const { processEnvironment = process.env, envText = "" } = options;
+  return { ...parseEnvText(envText), ...processEnvironment };
+}
+
 export function loadNativeEnvironment(options = {}) {
   const { processEnvironment = process.env, envText = "" } = options;
-  const fileEnvironment = parseEnvText(envText);
+  const combinedEnvironment = loadNativeProcessEnvironment({ envText, processEnvironment });
   return Object.fromEntries(
     Object.entries(nativeDefaults).map(([key, fallback]) => [
       key,
-      processEnvironment[key] ?? fileEnvironment[key] ?? fallback,
+      combinedEnvironment[key] ?? fallback,
     ]),
   );
 }
@@ -110,6 +142,7 @@ function probeSuccessDetail(key) {
 export async function probeNativeDependency({ environment, key, runtime }) {
   const code = pythonProbes[key];
   if (!code) return { detail: "未知检查项", ok: false };
+  if (runtime === null) return { detail: "未找到已安装的 Python 解释器", ok: false };
   const pythonPath = path.join(apiRoot, "src");
   const result = spawnSync(runtime.command, [...runtime.prefixArgs, "-c", code], {
     cwd: apiRoot,
@@ -156,7 +189,7 @@ export async function inspectNativeStatus(options = {}) {
     environment = loadProjectEnvironment(),
     probeDependency = probeNativeDependency,
     probePort = checkPortOccupied,
-    runtime = resolvePythonRuntime({ root: workspaceRoot }),
+    runtime = resolveNativePythonRuntime({ root: workspaceRoot }),
   } = options;
 
   const dependencies = [];

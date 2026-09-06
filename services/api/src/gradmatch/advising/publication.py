@@ -64,6 +64,7 @@ def publish_rule_set(
     rules = list(EligibilityRule.objects.filter(rule_set=rule_set).order_by("position"))
     if not rules:
         raise EvidencePublicationError("A rule set requires at least one evidence-backed rule.")
+    evidence_offering_ids: set[str] = set()
     for rule in rules:
         usages = list(
             RuleEvidenceUsage.objects.filter(rule=rule).select_related(
@@ -75,6 +76,7 @@ def publish_rule_set(
             raise EvidencePublicationError(f"Rule '{rule.key}' requires a published claim.")
         for usage in usages:
             claim = usage.claim
+            evidence_offering_ids.add(claim.offering.pk)
             if not PublicationEvent.objects.filter(claim=claim).exists():
                 raise EvidencePublicationError(f"Rule '{rule.key}' requires a published claim.")
             if not ManifestEntry.objects.filter(
@@ -83,6 +85,9 @@ def publish_rule_set(
             ).exists():
                 raise EvidencePublicationError("Rule evidence must belong to the frozen manifest.")
             _validate_evidence_namespace(rule_set, claim)
+
+    if len(evidence_offering_ids) != 1:
+        raise EvidencePublicationError("A rule set must contain evidence for exactly one offering.")
 
     rule_set.status = RuleSetRevision.Status.PUBLISHED.value
     rule_set.published_at = now
