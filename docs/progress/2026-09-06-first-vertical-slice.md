@@ -79,5 +79,7 @@ Task 10 评审修复了：
 - `5ebaae8`：首个纵向链路 E2E 与原生诊断；
 - `212465c`：Task 10 评审修复；
 - `184d7e3`：进程级离线 E2E 守卫。
+- `b1f98ba`：完成检查点与本进度记录；
+- `5cb43ad`：PostgreSQL 安全的重验证锁查询。
 
 `.env`、`.idea/`、`.local-runtime/`、`apps/web/AGENTS.md` 和 `apps/web/CLAUDE.md` 仍属于本机或用户文件，没有纳入提交。`dev` 尚未在本记录生成时推送；推送属于单独外部操作。
