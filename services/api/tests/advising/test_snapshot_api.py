@@ -3,10 +3,12 @@ from __future__ import annotations
 import pytest
 from allauth.account.models import EmailAddress
 from django.test import Client
+from django.utils import timezone
 
 from gradmatch.accounts.models import User
 from gradmatch.advising.capabilities import GUEST_CAPABILITY_COOKIE
 from gradmatch.advising.models import DecisionSnapshot, GuestSession
+from gradmatch.support.models import OutboxEvent, SnapshotUpdate, SnapshotUpdateNotification
 
 
 def create_guest_snapshot(client: Client) -> tuple[str, str]:
@@ -64,6 +66,21 @@ def test_current_pilot_snapshot_uses_awaiting_official_information(client: Clien
 def test_snapshot_claim_requires_login_and_the_valid_capability(client: Client) -> None:
     _, snapshot_id = create_guest_snapshot(client)
     original_token = client.cookies[GUEST_CAPABILITY_COOKIE].value
+    snapshot = DecisionSnapshot.objects.get(pk=snapshot_id)
+    event = OutboxEvent.objects.create(
+        event_key="correction.claim-published:claim-notification",
+        event_type="correction.claim_published",
+        payload={},
+        published_at=timezone.now(),
+    )
+    update = SnapshotUpdate.objects.create(
+        outbox_event=event,
+        old_snapshot=snapshot,
+        old_result=snapshot.comparison_result,
+        new_result=snapshot.comparison_result,
+        diff={"group_changes": {}},
+    )
+    notification = SnapshotUpdateNotification.objects.create(snapshot_update=update)
 
     unauthenticated = client.post(f"/api/v1/decision-snapshots/{snapshot_id}/claim")
     assert unauthenticated.status_code == 401
@@ -90,6 +107,8 @@ def test_snapshot_claim_requires_login_and_the_valid_capability(client: Client) 
     assert guest_session.owner == user
     assert guest_session.claimed_at is not None
     assert guest_session.revoked_at is not None
+    notification.refresh_from_db()
+    assert notification.recipient == user
     assert claimed.cookies[GUEST_CAPABILITY_COOKIE]["max-age"] == 0
     assert client.get(f"/api/v1/decision-snapshots/{snapshot_id}").status_code == 200
 

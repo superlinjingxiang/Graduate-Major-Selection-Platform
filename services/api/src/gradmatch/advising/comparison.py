@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import cast
 
 from django.db import transaction
@@ -21,6 +21,7 @@ from .models import (
     FactSetRevision,
     GuestSession,
     PublicationEvent,
+    RuleSetRevision,
 )
 
 
@@ -62,6 +63,7 @@ def recompute_comparison_run(
     *,
     run: ComparisonRun,
     trigger_publication_event: PublicationEvent,
+    rule_sets_by_offering: Mapping[str, RuleSetRevision | None] | None = None,
 ) -> tuple[ComparisonRunResult, bool]:
     locked_run = ComparisonRun.objects.select_for_update().get(pk=run.pk)
     existing = ComparisonRunResult.objects.filter(
@@ -76,6 +78,7 @@ def recompute_comparison_run(
     result, assessments = _build_comparison_result(
         fact_revision=locked_run.fact_revision,
         entries=entries,
+        rule_sets_by_offering=rule_sets_by_offering,
     )
     latest = ComparisonRunResult.objects.filter(run=locked_run).order_by("-version").first()
     next_version = 1 if latest is None else latest.version + 1
@@ -115,12 +118,24 @@ def _build_comparison_result(
     *,
     fact_revision: FactSetRevision,
     entries: list[ManifestEntry],
+    rule_sets_by_offering: Mapping[str, RuleSetRevision | None] | None = None,
 ) -> tuple[dict[str, object], list[EligibilityAssessment]]:
     ordered_offerings = [entry.offering for entry in entries]
-    assessments = [
-        assess_eligibility(offering=offering, fact_revision=fact_revision)
-        for offering in ordered_offerings
-    ]
+    assessments: list[EligibilityAssessment] = []
+    for offering in ordered_offerings:
+        if rule_sets_by_offering is None:
+            assessment = assess_eligibility(
+                offering=offering,
+                fact_revision=fact_revision,
+            )
+        else:
+            assessment = assess_eligibility(
+                offering=offering,
+                fact_revision=fact_revision,
+                rule_set=rule_sets_by_offering.get(offering.pk),
+                resolve_current_rule_set=False,
+            )
+        assessments.append(assessment)
     groups: dict[str, list[str]] = {
         "eligible_known": [],
         "ineligible_known": [],

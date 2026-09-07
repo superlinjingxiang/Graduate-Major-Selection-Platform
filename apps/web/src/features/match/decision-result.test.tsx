@@ -28,6 +28,7 @@ const snapshot = {
   revisit_date: null,
   snapshot_hash: "b".repeat(64),
   created_at: "2026-09-02T00:00:00Z",
+  updates: [],
 };
 const offerings = [
   {

@@ -26,6 +26,7 @@ class AppendOnlyEventError(RuntimeError):
 class CorrectionCase(models.Model):
     class Status(models.TextChoices):
         SUBMITTED = "submitted", "Submitted"
+        REVIEWING = "reviewing", "Reviewing"
         ACCEPTED = "accepted", "Accepted"
         PUBLISHED = "published", "Published"
         REJECTED = "rejected", "Rejected"
@@ -73,6 +74,16 @@ class CorrectionCase(models.Model):
         on_delete=models.PROTECT,
         related_name="accepted_correction_cases",
     )
+    reviewer: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="assigned_correction_cases",
+    )
+    review_started_at: models.DateTimeField[
+        datetime | None, datetime | None
+    ] = models.DateTimeField(null=True, blank=True)
     reviewer_note: models.TextField[str, str] = models.TextField(blank=True)
     created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(auto_now=True)
@@ -205,4 +216,27 @@ class SnapshotUpdate(models.Model):
                 name="support_snapshot_update_event_snapshot_unique",
             )
         ]
+        ordering = ["created_at", "id"]
+
+
+class SnapshotUpdateNotification(models.Model):
+    snapshot_update: models.OneToOneField[SnapshotUpdate, SnapshotUpdate] = (
+        models.OneToOneField(
+            SnapshotUpdate,
+            on_delete=models.PROTECT,
+            related_name="notification",
+        )
+    )
+    recipient: models.ForeignKey[User | None, User | None] = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="snapshot_update_notifications",
+    )
+    created_at: models.DateTimeField[datetime, datetime] = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    class Meta:
         ordering = ["created_at", "id"]

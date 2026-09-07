@@ -39,6 +39,35 @@ export const eligibilityAssessmentSchema = z
   })
   .strict() satisfies z.ZodType<EligibilityAssessmentResponse>;
 
+const snapshotUpdateSchema = z
+  .object({
+    notification_id: z.number().int().positive(),
+    corrected_field: z.string().min(1),
+    old_value: z.unknown(),
+    new_value: z.unknown(),
+    source: z
+      .object({
+        title: z.string().min(1),
+        url: z.url(),
+        locator: z.string(),
+      })
+      .strict(),
+    from_result_hash: z.string().regex(/^[a-f0-9]{64}$/u),
+    to_result_hash: z.string().regex(/^[a-f0-9]{64}$/u),
+    group_changes: z.record(
+      z.string(),
+      z
+        .object({
+          added: z.array(z.string().min(1)),
+          removed: z.array(z.string().min(1)),
+        })
+        .strict(),
+    ),
+    next_actions: z.array(z.string().min(1)),
+    created_at: z.iso.datetime(),
+  })
+  .strict();
+
 export const decisionSnapshotSchema = z
   .object({
     snapshot_id: z.uuid(),
@@ -55,6 +84,7 @@ export const decisionSnapshotSchema = z
     revisit_date: z.iso.date().nullable(),
     snapshot_hash: z.string().regex(/^[a-f0-9]{64}$/u),
     created_at: z.iso.datetime(),
+    updates: z.array(snapshotUpdateSchema),
   })
   .strict() satisfies z.ZodType<DecisionSnapshotResponse>;
 

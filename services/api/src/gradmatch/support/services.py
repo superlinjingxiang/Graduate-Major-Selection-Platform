@@ -9,7 +9,12 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from gradmatch.accounts.models import User
-from gradmatch.accounts.roles import ADMINISTRATOR_ROLE, REVIEWER_ROLE, has_staff_role
+from gradmatch.accounts.roles import (
+    ADMINISTRATOR_ROLE,
+    EDITOR_ROLE,
+    REVIEWER_ROLE,
+    has_staff_role,
+)
 from gradmatch.advising.comparison import recompute_comparison_run
 from gradmatch.advising.models import (
     ComparisonRun,
@@ -25,9 +30,17 @@ from gradmatch.advising.models import (
     SourceDocumentRevision,
 )
 from gradmatch.advising.publication import publish_claim, publish_rule_set, revise_claim
-from gradmatch.catalog.models import AnnualOffering
+from gradmatch.catalog.models import AnnualOffering, CoverageManifest
+from gradmatch.catalog.seed import ENGINEERING_SLICE_OFFERING_IDS, PILOT_MANIFEST_KEY
 
-from .models import AuditEvent, CorrectionCase, JobExecution, OutboxEvent, SnapshotUpdate
+from .models import (
+    AuditEvent,
+    CorrectionCase,
+    JobExecution,
+    OutboxEvent,
+    SnapshotUpdate,
+    SnapshotUpdateNotification,
+)
 
 RECOMPUTATION_HANDLER = "support.recompute_published_correction"
 CORRECTION_PUBLICATION_EVENT = "correction.claim_published"
@@ -63,6 +76,39 @@ def submit_correction(
 
 
 @transaction.atomic
+def begin_correction_review(
+    *,
+    correction_id: UUID | str,
+    reviewer: User,
+    now: datetime,
+) -> CorrectionCase:
+    _require_role(reviewer, REVIEWER_ROLE)
+    case = CorrectionCase.objects.select_for_update().get(pk=correction_id)
+    if case.status == CorrectionCase.Status.REVIEWING.value:
+        if case.reviewer is None or case.reviewer.pk != reviewer.pk:
+            raise CorrectionWorkflowError(
+                "A correction already has a different assigned reviewer."
+            )
+        return case
+    if case.status != CorrectionCase.Status.SUBMITTED.value:
+        raise CorrectionWorkflowError("Only a submitted correction can enter review.")
+    case.status = CorrectionCase.Status.REVIEWING.value
+    case.reviewer = reviewer
+    case.review_started_at = now
+    case.save(
+        update_fields=("status", "reviewer", "review_started_at", "updated_at")
+    )
+    AuditEvent.objects.create(
+        actor=reviewer,
+        action="correction.review_started",
+        target_type="correction_case",
+        target_id=str(case.pk),
+        metadata={"review_started_at": now.isoformat()},
+    )
+    return case
+
+
+@transaction.atomic
 def accept_correction(
     *,
     correction_id: UUID | str,
@@ -77,8 +123,7 @@ def accept_correction(
     case = CorrectionCase.objects.select_for_update().select_related("offering").get(
         pk=correction_id
     )
-    if case.status != CorrectionCase.Status.SUBMITTED.value:
-        raise CorrectionWorkflowError("Only a submitted correction can be accepted.")
+    _require_assigned_review(case, reviewer)
     if (
         source_document.data_class != SourceDocumentRevision.DataClass.PRODUCTION.value
         or source_document.reference_year != case.offering.target_year
@@ -86,8 +131,12 @@ def accept_correction(
         raise CorrectionWorkflowError(
             "A production correction requires current-year production evidence."
         )
-    if source_document.created_by is None:
-        raise CorrectionWorkflowError("A correction replacement requires an identified editor.")
+    if source_document.created_by is None or not has_staff_role(
+        source_document.created_by, EDITOR_ROLE
+    ):
+        raise CorrectionWorkflowError(
+            "A correction replacement requires a creator with the editor role."
+        )
     if source_document.created_by.pk == reviewer.pk:
         raise CorrectionWorkflowError("A correction replacement requires an independent reviewer.")
     original_claim = (
@@ -141,6 +190,9 @@ def publish_correction(
     now: datetime,
 ) -> OutboxEvent:
     _require_role(reviewer, ADMINISTRATOR_ROLE)
+    # Serialise publication against one stable row so every event can capture a
+    # complete, globally ordered production-rule state.
+    CoverageManifest.objects.select_for_update().get(key=PILOT_MANIFEST_KEY)
     case = CorrectionCase.objects.select_for_update().select_related(
         "accepted_claim__supersedes"
     ).get(pk=correction_id)
@@ -173,12 +225,17 @@ def publish_correction(
         reviewer=reviewer,
         now=now,
     )
+    predecessor = OutboxEvent.objects.filter(
+        event_type=CORRECTION_PUBLICATION_EVENT,
+    ).order_by("-id").first()
     payload: dict[str, object] = {
         "correction_id": str(case.pk),
         "publication_event_id": publication.pk,
         "superseded_claim_id": case.accepted_claim.supersedes.pk,
         "replacement_claim_id": case.accepted_claim.pk,
         "revised_rule_set_ids": revised_rule_set_ids,
+        "predecessor_event_key": predecessor.event_key if predecessor is not None else None,
+        "rule_set_ids_by_offering": _current_rule_set_ids_by_offering(),
     }
     outbox = OutboxEvent.objects.create(
         event_key=f"correction.claim-published:{publication.pk}",
@@ -237,9 +294,17 @@ def _create_revalidation_rule_sets(
             claim=superseded_claim,
         ).exists():
             continue
+        latest_any = (
+            RuleSetRevision.objects.select_for_update()
+            .filter(key=key)
+            .order_by("-revision", "-id")
+            .first()
+        )
+        if latest_any is None:
+            raise CorrectionWorkflowError("The published rule-set family is missing.")
         revised = RuleSetRevision.objects.create(
             key=previous.key,
-            revision=previous.revision + 1,
+            revision=latest_any.revision + 1,
             namespace=previous.namespace,
             target_year=previous.target_year,
             reference_year=previous.reference_year,
@@ -304,8 +369,7 @@ def reject_correction(
 ) -> CorrectionCase:
     _require_role(reviewer, REVIEWER_ROLE)
     case = CorrectionCase.objects.select_for_update().get(pk=correction_id)
-    if case.status != CorrectionCase.Status.SUBMITTED.value:
-        raise CorrectionWorkflowError("Only a submitted correction can be rejected.")
+    _require_assigned_review(case, reviewer)
     case.status = CorrectionCase.Status.REJECTED.value
     case.reviewer_note = reviewer_note
     case.save(update_fields=("status", "reviewer_note", "updated_at"))
@@ -369,6 +433,14 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
     if existing is not None:
         return _execution_result(existing.result)
 
+    predecessor_event_key = event.payload.get("predecessor_event_key")
+    if predecessor_event_key is not None:
+        if not isinstance(predecessor_event_key, str):
+            raise CorrectionWorkflowError(
+                "Outbox payload field 'predecessor_event_key' must be a string or null."
+            )
+        process_recomputation_event(event_key=predecessor_event_key)
+
     execution = JobExecution.objects.create(
         event_key=event.event_key,
         handler_name=RECOMPUTATION_HANDLER,
@@ -378,10 +450,15 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
     publication_event_id = _payload_int(event.payload, "publication_event_id")
     superseded_claim_id = _payload_int(event.payload, "superseded_claim_id")
     publication = PublicationEvent.objects.get(pk=publication_event_id)
+    superseded_claim = EvidenceClaimRevision.objects.get(pk=superseded_claim_id)
+    lineage_claim_ids = EvidenceClaimRevision.objects.filter(
+        claim_key=superseded_claim.claim_key
+    ).values_list("pk", flat=True)
+    rule_sets_by_offering = _payload_rule_sets_by_offering(event.payload)
     affected_runs = list(
         ComparisonRun.objects.filter(
-            results__assessment_usages__assessment__rule_set__rules__evidence_usages__claim_id=(
-                superseded_claim_id
+            results__assessment_usages__assessment__rule_set__rules__evidence_usages__claim_id__in=(
+                lineage_claim_ids
             )
         )
         .distinct()
@@ -397,6 +474,7 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
         new_result, created = recompute_comparison_run(
             run=run,
             trigger_publication_event=publication,
+            rule_sets_by_offering=rule_sets_by_offering,
         )
         if not created:
             continue
@@ -406,7 +484,7 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
         )
         for snapshot in snapshots:
             pinned_result = snapshot.comparison_result
-            _, update_created = SnapshotUpdate.objects.get_or_create(
+            update, update_created = SnapshotUpdate.objects.get_or_create(
                 outbox_event=event,
                 old_snapshot=snapshot,
                 defaults={
@@ -415,6 +493,24 @@ def process_recomputation_event(*, event_key: str) -> dict[str, int]:
                     "diff": _comparison_diff(pinned_result, new_result),
                 },
             )
+            recipient = run.owner
+            if recipient is None and run.guest_session is not None:
+                recipient = run.guest_session.owner
+            notification, notification_created = SnapshotUpdateNotification.objects.get_or_create(
+                snapshot_update=update,
+                defaults={"recipient": recipient},
+            )
+            if notification_created:
+                AuditEvent.objects.create(
+                    actor=None,
+                    action="snapshot_update.notification_created",
+                    target_type="snapshot_update_notification",
+                    target_id=str(notification.pk),
+                    metadata={
+                        "snapshot_id": str(snapshot.pk),
+                        "snapshot_update_id": update.pk,
+                    },
+                )
             created_snapshot_updates += int(update_created)
 
     result: dict[str, object] = {
@@ -493,9 +589,64 @@ def _payload_int(payload: dict[str, object], key: str) -> int:
     return value
 
 
+def _current_rule_set_ids_by_offering() -> dict[str, int | None]:
+    rule_set_ids: dict[str, int | None] = {}
+    for offering_id in sorted(ENGINEERING_SLICE_OFFERING_IDS):
+        rule_set = (
+            RuleSetRevision.objects.filter(
+                manifest__key=PILOT_MANIFEST_KEY,
+                manifest__entries__offering_id=offering_id,
+                rules__evidence_usages__claim__offering_id=offering_id,
+                namespace=RuleSetRevision.Namespace.PRODUCTION.value,
+                target_year=2027,
+                status=RuleSetRevision.Status.PUBLISHED.value,
+            )
+            .distinct()
+            .order_by("-revision", "-id")
+            .first()
+        )
+        rule_set_ids[offering_id] = rule_set.pk if rule_set is not None else None
+    return rule_set_ids
+
+
+def _payload_rule_sets_by_offering(
+    payload: dict[str, object],
+) -> dict[str, RuleSetRevision | None]:
+    raw_mapping = payload.get("rule_set_ids_by_offering")
+    if not isinstance(raw_mapping, dict):
+        raise CorrectionWorkflowError(
+            "Outbox payload field 'rule_set_ids_by_offering' must be an object."
+        )
+    mapping = cast(dict[object, object], raw_mapping)
+    expected_ids = set(ENGINEERING_SLICE_OFFERING_IDS)
+    if set(mapping) != expected_ids:
+        raise CorrectionWorkflowError("Outbox rule-set state must cover the frozen pilot.")
+    rule_set_ids = {value for value in mapping.values() if isinstance(value, int)}
+    if any(value is not None and not isinstance(value, int) for value in mapping.values()):
+        raise CorrectionWorkflowError("Outbox rule-set ids must be integers or null.")
+    persisted = RuleSetRevision.objects.in_bulk(rule_set_ids)
+    if set(persisted) != rule_set_ids:
+        raise CorrectionWorkflowError("An outbox rule-set revision no longer exists.")
+    return {
+        offering_id: persisted[value] if isinstance(value, int) else None
+        for offering_id, value in cast(dict[str, object], mapping).items()
+    }
+
+
 def _require_role(actor: User, role: str) -> None:
     persisted = User.objects.filter(pk=actor.pk).first()
     if persisted is None or not has_staff_role(persisted, role):
         raise CorrectionWorkflowError(
             f"Only a staff member with the {role} role may change correction status."
+        )
+
+
+def _require_assigned_review(case: CorrectionCase, reviewer: User) -> None:
+    if (
+        case.status != CorrectionCase.Status.REVIEWING.value
+        or case.reviewer is None
+        or case.reviewer.pk != reviewer.pk
+    ):
+        raise CorrectionWorkflowError(
+            "Only the assigned reviewer may decide a correction under review."
         )

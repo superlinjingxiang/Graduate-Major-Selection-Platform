@@ -12,12 +12,20 @@ from django.utils import timezone
 from ninja import Router, Schema, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
-from pydantic import ConfigDict, Field, StrictBool, StrictInt, StringConstraints
+from pydantic import (
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    StringConstraints,
+    field_validator,
+)
 
 from gradmatch.accounts.authentication import x_session_token_header_auth
 from gradmatch.accounts.models import User
 from gradmatch.catalog.models import AnnualOffering
 from gradmatch.catalog.seed import ENGINEERING_SLICE_OFFERING_IDS, PILOT_MANIFEST_KEY
+from gradmatch.support.models import SnapshotUpdate, SnapshotUpdateNotification
 
 from .capabilities import (
     GUEST_CAPABILITY_COOKIE,
@@ -38,6 +46,7 @@ from .models import (
     ComparisonRunResult,
     DecisionSnapshot,
     EligibilityAssessment,
+    EvidenceClaimRevision,
     FactSet,
     FactSetRevision,
     GuestSession,
@@ -67,6 +76,13 @@ class ConfirmedFacts(Schema):
     years_of_work_experience: NonNegativeYears | None = None
     overseas_degree_certified: StrictBool | None = None
     directed_employment_confirmed: StrictBool | None = None
+
+    @field_validator("target_year", mode="before")
+    @classmethod
+    def require_strict_pilot_year(cls, value: object) -> object:
+        if value is not None and (type(value) is not int or value != 2027):
+            raise ValueError("target_year must be the integer 2027")
+        return value
 
 
 class FactSetCreateRequest(Schema):
@@ -127,6 +143,25 @@ class DecisionSnapshotCreateRequest(Schema):
     requested_outcome: str | None = None
 
 
+class SnapshotUpdateSourceResponse(Schema):
+    title: str
+    url: str
+    locator: str
+
+
+class SnapshotUpdateResponse(Schema):
+    notification_id: int
+    corrected_field: str
+    old_value: object
+    new_value: object
+    source: SnapshotUpdateSourceResponse
+    from_result_hash: str
+    to_result_hash: str
+    group_changes: dict[str, dict[str, list[str]]]
+    next_actions: list[str]
+    created_at: datetime
+
+
 class DecisionSnapshotResponse(Schema):
     snapshot_id: UUID
     comparison_run_id: UUID
@@ -142,6 +177,7 @@ class DecisionSnapshotResponse(Schema):
     revisit_date: date | None
     snapshot_hash: str
     created_at: datetime
+    updates: list[SnapshotUpdateResponse]
 
 
 @router.post("/fact-sets", response={201: FactSetResponse}, operation_id="create_fact_set")
@@ -386,7 +422,57 @@ def _serialize_snapshot(snapshot: DecisionSnapshot) -> DecisionSnapshotResponse:
         revisit_date=snapshot.revisit_date,
         snapshot_hash=snapshot.snapshot_hash,
         created_at=snapshot.created_at,
+        updates=_serialize_snapshot_updates(snapshot),
     )
+
+
+def _serialize_snapshot_updates(
+    snapshot: DecisionSnapshot,
+) -> list[SnapshotUpdateResponse]:
+    updates = SnapshotUpdate.objects.filter(old_snapshot=snapshot).select_related(
+        "outbox_event",
+        "old_result",
+        "new_result",
+        "notification",
+    )
+    serialized: list[SnapshotUpdateResponse] = []
+    for update in updates:
+        replacement_claim_id = update.outbox_event.payload.get("replacement_claim_id")
+        if not isinstance(replacement_claim_id, int):
+            continue
+        replacement = EvidenceClaimRevision.objects.select_related(
+            "supersedes",
+            "source_document__source_fetch",
+        ).get(pk=replacement_claim_id)
+        if replacement.supersedes is None:
+            continue
+        raw_group_changes = update.diff.get("group_changes")
+        if not isinstance(raw_group_changes, dict):
+            continue
+        source_document = replacement.source_document
+        notification = SnapshotUpdateNotification.objects.get(snapshot_update=update)
+        serialized.append(
+            SnapshotUpdateResponse(
+                notification_id=cast(int, notification.pk),
+                corrected_field=replacement.field_key,
+                old_value=replacement.supersedes.normalized_value,
+                new_value=replacement.normalized_value,
+                source=SnapshotUpdateSourceResponse(
+                    title=source_document.title,
+                    url=source_document.source_fetch.source_url,
+                    locator=source_document.locator,
+                ),
+                from_result_hash=update.old_result.result_hash,
+                to_result_hash=update.new_result.result_hash,
+                group_changes=cast(
+                    dict[str, dict[str, list[str]]],
+                    raw_group_changes,
+                ),
+                next_actions=["根据更新后的资格结果重新核对候选项目"],
+                created_at=update.created_at,
+            )
+        )
+    return serialized
 
 
 def _get_accessible_comparison_run(

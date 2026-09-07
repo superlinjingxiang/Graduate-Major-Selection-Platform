@@ -81,6 +81,29 @@ def test_claim_publication_requires_explicit_reviewer_and_administrator_roles() 
 
 
 @pytest.mark.django_db
+def test_claim_and_rule_set_publication_require_an_editor_creator() -> None:
+    ordinary_creator = User.objects.create_user(
+        email="ordinary-creator@example.test",
+        password="strong-password-123",
+    )
+    reviewer = create_reviewer()
+    claim = create_claim(create_source_document(created_by=ordinary_creator))
+    approve_claim(claim, reviewer)
+
+    with pytest.raises(EvidencePublicationError, match="editor role"):
+        publish_claim(claim_id=claim.pk, reviewer=reviewer, now=timezone.now())
+
+    valid_claim = create_claim(create_source_document())
+    approve_claim(valid_claim, reviewer)
+    publish_claim(claim_id=valid_claim.pk, reviewer=reviewer, now=timezone.now())
+    rule_set = create_rule_set(created_by=ordinary_creator)
+    create_rule_with_evidence(rule_set, valid_claim)
+
+    with pytest.raises(EvidencePublicationError, match="editor role"):
+        publish_rule_set(rule_set_id=rule_set.pk, reviewer=reviewer, now=timezone.now())
+
+
+@pytest.mark.django_db
 def test_unreviewed_claim_cannot_be_published() -> None:
     reviewer = create_reviewer()
     claim = create_claim(create_source_document())

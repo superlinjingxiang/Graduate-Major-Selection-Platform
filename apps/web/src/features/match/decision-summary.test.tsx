@@ -27,6 +27,7 @@ const snapshot = {
   revisit_date: null,
   snapshot_hash: "b".repeat(64),
   created_at: "2026-09-02T00:00:00Z",
+  updates: [],
 };
 
 const offerings = [
@@ -68,6 +69,48 @@ describe("decision summary", () => {
     expect(screen.getByRole("button", { name: "提交信息纠错" })).toBeInTheDocument();
     expect(screen.queryByText(/概率|排名|推荐分|录取把握/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/development|v0\.1|平台状态/u)).not.toBeInTheDocument();
+  });
+
+  it("shows correction notifications with old/new evidence and an action", () => {
+    render(
+      <DecisionSummary
+        offerings={offerings}
+        snapshot={{
+          ...snapshot,
+          updates: [
+            {
+              notification_id: 1,
+              corrected_field: "eligibility.sample_rule",
+              old_value: true,
+              new_value: false,
+              source: {
+                title: "2027 年招生章程修订版",
+                url: "https://yzb.example.edu/2027/rules",
+                locator: "第二章第 3 条",
+              },
+              from_result_hash: "a".repeat(64),
+              to_result_hash: "c".repeat(64),
+              group_changes: {
+                eligible_known: { added: [], removed: [offerings[0]?.id ?? ""] },
+                ineligible_known: { added: [offerings[0]?.id ?? ""], removed: [] },
+                needs_confirmation: { added: [], removed: [] },
+              },
+              next_actions: ["根据更新后的资格结果重新核对候选项目"],
+              created_at: "2026-09-03T00:00:00Z",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "信息更新" })).toBeInTheDocument();
+    expect(screen.getByText("原值：是 → 新值：否")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "2027 年招生章程修订版" })).toHaveAttribute(
+      "href",
+      "https://yzb.example.edu/2027/rules",
+    );
+    expect(screen.getByText("来源位置：第二章第 3 条")).toBeInTheDocument();
+    expect(screen.getByText("根据更新后的资格结果重新核对候选项目")).toBeInTheDocument();
   });
 
   it.each([

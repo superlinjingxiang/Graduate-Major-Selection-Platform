@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 from advising.factories import (
@@ -9,16 +10,19 @@ from advising.factories import (
     create_reviewer,
     create_source_document,
 )
+from django.contrib.auth.models import Group
 from django.test import Client
 from django.utils import timezone
 
 from gradmatch.accounts.models import User
 from gradmatch.advising.models import EvidenceClaimRevision, PublicationEvent, ReviewDecision
 from gradmatch.advising.publication import publish_claim
+from gradmatch.catalog.seed import ENGINEERING_SLICE_OFFERING_IDS
 from gradmatch.support.models import AuditEvent, CorrectionCase, OutboxEvent
 from gradmatch.support.services import (
     CorrectionWorkflowError,
     accept_correction,
+    begin_correction_review,
     publish_correction,
     reject_correction,
 )
@@ -126,6 +130,42 @@ def test_only_staff_can_accept_publish_or_reject_a_correction(client: Client) ->
 
 
 @pytest.mark.django_db
+def test_correction_must_enter_reviewing_before_an_assigned_reviewer_decides(
+    client: Client,
+) -> None:
+    correction_id, _ = submit_correction(client)
+    reviewer = create_reviewer()
+    started_at = timezone.now()
+
+    reviewing = begin_correction_review(
+        correction_id=correction_id,
+        reviewer=reviewer,
+        now=started_at,
+    )
+
+    assert reviewing.status == CorrectionCase.Status.REVIEWING
+    assert reviewing.reviewer == reviewer
+    assert reviewing.review_started_at == started_at
+    assert AuditEvent.objects.filter(
+        target_id=correction_id,
+        action="correction.review_started",
+    ).exists()
+    public_status = client.get(f"/api/v1/corrections/{correction_id}")
+    assert public_status.status_code == 200
+    assert public_status.json()["status"] == "reviewing"
+    assert "reviewer" not in public_status.json()
+
+    other_reviewer = create_reviewer()
+    with pytest.raises(CorrectionWorkflowError, match="assigned reviewer"):
+        reject_correction(
+            correction_id=correction_id,
+            reviewer=other_reviewer,
+            reviewer_note="Not assigned.",
+            now=timezone.now(),
+        )
+
+
+@pytest.mark.django_db
 def test_accept_and_publish_create_revision_audit_and_outbox_atomically(client: Client) -> None:
     reviewer = create_reviewer()
     original = create_claim(create_source_document(), normalized_value=True)
@@ -133,6 +173,11 @@ def test_accept_and_publish_create_revision_audit_and_outbox_atomically(client: 
     publish_claim(claim_id=original.pk, reviewer=reviewer, now=timezone.now())
     correction_id, _ = submit_correction(client)
 
+    begin_correction_review(
+        correction_id=correction_id,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
     accepted = accept_correction(
         correction_id=correction_id,
         reviewer=reviewer,
@@ -160,15 +205,22 @@ def test_accept_and_publish_create_revision_audit_and_outbox_atomically(client: 
         outcome=ReviewDecision.Outcome.APPROVED,
     ).exists()
     assert PublicationEvent.objects.filter(claim=replacement).count() == 1
-    assert event.payload == {
-        "correction_id": correction_id,
-        "publication_event_id": PublicationEvent.objects.get(claim=replacement).pk,
-        "superseded_claim_id": original.pk,
-        "replacement_claim_id": replacement.pk,
-        "revised_rule_set_ids": [],
-    }
+    assert event.payload["correction_id"] == correction_id
+    assert event.payload["publication_event_id"] == PublicationEvent.objects.get(
+        claim=replacement
+    ).pk
+    assert event.payload["superseded_claim_id"] == original.pk
+    assert event.payload["replacement_claim_id"] == replacement.pk
+    assert event.payload["revised_rule_set_ids"] == []
+    assert event.payload["predecessor_event_key"] is None
+    rule_set_ids_by_offering = cast(
+        dict[str, int | None], event.payload["rule_set_ids_by_offering"]
+    )
+    assert set(rule_set_ids_by_offering) == set(
+        ENGINEERING_SLICE_OFFERING_IDS
+    )
     assert event.processing_state == OutboxEvent.ProcessingState.PENDING
-    assert AuditEvent.objects.filter(target_id=correction_id).count() == 2
+    assert AuditEvent.objects.filter(target_id=correction_id).count() == 3
     assert CorrectionCase.objects.get(pk=correction_id).status == CorrectionCase.Status.PUBLISHED
 
 
@@ -197,6 +249,11 @@ def test_fixture_evidence_cannot_be_accepted_as_a_production_correction(
     publish_claim(claim_id=original.pk, reviewer=reviewer, now=timezone.now())
     correction_id, _ = submit_correction(client)
 
+    begin_correction_review(
+        correction_id=correction_id,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
     with pytest.raises(CorrectionWorkflowError, match="current-year production evidence"):
         accept_correction(
             correction_id=correction_id,
@@ -211,18 +268,25 @@ def test_fixture_evidence_cannot_be_accepted_as_a_production_correction(
             now=timezone.now(),
         )
 
-    assert CorrectionCase.objects.get(pk=correction_id).status == "submitted"
+    assert CorrectionCase.objects.get(pk=correction_id).status == "reviewing"
     assert EvidenceClaimRevision.objects.filter(claim_key=original.claim_key).count() == 1
 
 
 @pytest.mark.django_db
 def test_correction_editor_cannot_review_their_own_replacement(client: Client) -> None:
     reviewer = create_reviewer()
+    editor_group, _ = Group.objects.get_or_create(name="editor")
+    reviewer.groups.add(editor_group)  # pyright: ignore[reportUnknownMemberType]
     original = create_claim(create_source_document(), normalized_value=True)
     approve_claim(original, reviewer)
     publish_claim(claim_id=original.pk, reviewer=reviewer, now=timezone.now())
     correction_id, _ = submit_correction(client)
 
+    begin_correction_review(
+        correction_id=correction_id,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
     with pytest.raises(CorrectionWorkflowError, match="independent reviewer"):
         accept_correction(
             correction_id=correction_id,
@@ -234,4 +298,4 @@ def test_correction_editor_cannot_review_their_own_replacement(client: Client) -
             now=timezone.now(),
         )
 
-    assert CorrectionCase.objects.get(pk=correction_id).status == "submitted"
+    assert CorrectionCase.objects.get(pk=correction_id).status == "reviewing"

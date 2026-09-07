@@ -446,6 +446,8 @@ export interface components {
              * Format: uuid
              */
             snapshot_id: string;
+            /** Updates */
+            updates: components["schemas"]["SnapshotUpdateResponse"][];
             /** User Confirmed Reasons */
             user_confirmed_reasons: string[];
         };
@@ -593,6 +595,44 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "error";
+        };
+        /** SnapshotUpdateResponse */
+        SnapshotUpdateResponse: {
+            /** Corrected Field */
+            corrected_field: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** From Result Hash */
+            from_result_hash: string;
+            /** Group Changes */
+            group_changes: {
+                [key: string]: {
+                    [key: string]: string[];
+                };
+            };
+            /** New Value */
+            new_value: unknown;
+            /** Next Actions */
+            next_actions: string[];
+            /** Notification Id */
+            notification_id: number;
+            /** Old Value */
+            old_value: unknown;
+            source: components["schemas"]["SnapshotUpdateSourceResponse"];
+            /** To Result Hash */
+            to_result_hash: string;
+        };
+        /** SnapshotUpdateSourceResponse */
+        SnapshotUpdateSourceResponse: {
+            /** Locator */
+            locator: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
         };
         /** TaxonomyNodeResponse */
         TaxonomyNodeResponse: {

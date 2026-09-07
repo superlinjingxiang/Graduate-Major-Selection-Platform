@@ -443,6 +443,13 @@
             "title": "Snapshot Id",
             "type": "string"
           },
+          "updates": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotUpdateResponse"
+            },
+            "title": "Updates",
+            "type": "array"
+          },
           "user_confirmed_reasons": {
             "items": {
               "type": "string"
@@ -465,7 +472,8 @@
           "next_actions",
           "revisit_date",
           "snapshot_hash",
-          "created_at"
+          "created_at",
+          "updates"
         ],
         "title": "DecisionSnapshotResponse",
         "type": "object"
@@ -817,6 +825,97 @@
           "checks"
         ],
         "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "SnapshotUpdateResponse": {
+        "properties": {
+          "corrected_field": {
+            "title": "Corrected Field",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "from_result_hash": {
+            "title": "From Result Hash",
+            "type": "string"
+          },
+          "group_changes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "title": "Group Changes",
+            "type": "object"
+          },
+          "new_value": {
+            "title": "New Value"
+          },
+          "next_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Next Actions",
+            "type": "array"
+          },
+          "notification_id": {
+            "title": "Notification Id",
+            "type": "integer"
+          },
+          "old_value": {
+            "title": "Old Value"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SnapshotUpdateSourceResponse"
+          },
+          "to_result_hash": {
+            "title": "To Result Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notification_id",
+          "corrected_field",
+          "old_value",
+          "new_value",
+          "source",
+          "from_result_hash",
+          "to_result_hash",
+          "group_changes",
+          "next_actions",
+          "created_at"
+        ],
+        "title": "SnapshotUpdateResponse",
+        "type": "object"
+      },
+      "SnapshotUpdateSourceResponse": {
+        "properties": {
+          "locator": {
+            "title": "Locator",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url",
+          "locator"
+        ],
+        "title": "SnapshotUpdateSourceResponse",
         "type": "object"
       },
       "TaxonomyNodeResponse": {

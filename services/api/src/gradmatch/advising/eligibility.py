@@ -39,6 +39,7 @@ def assess_eligibility(
     offering: AnnualOffering,
     fact_revision: FactSetRevision,
     rule_set: RuleSetRevision | None = None,
+    resolve_current_rule_set: bool = True,
     allow_test_fixture: bool = False,
 ) -> EligibilityAssessment:
     manifest_entry = ManifestEntry.objects.filter(
@@ -48,11 +49,12 @@ def assess_eligibility(
     if manifest_entry is None:
         raise EligibilityScopeError("The offering is outside the active pilot manifest.")
 
-    active_rule_set = (
-        RuleSetRevision.objects.get(pk=rule_set.pk)
-        if rule_set is not None
-        else _find_production_rule_set(offering)
-    )
+    if rule_set is not None:
+        active_rule_set = RuleSetRevision.objects.get(pk=rule_set.pk)
+    elif resolve_current_rule_set:
+        active_rule_set = _find_production_rule_set(offering)
+    else:
+        active_rule_set = None
     if active_rule_set is not None:
         _guard_rule_set_namespace(active_rule_set, allow_test_fixture=allow_test_fixture)
 

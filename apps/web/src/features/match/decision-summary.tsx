@@ -43,6 +43,14 @@ function offeringDecisionLabel(snapshot: DecisionSnapshot, offeringId: string) {
   return "资格状态：需要重新核对";
 }
 
+function publicValue(value: unknown): string {
+  if (value === true) return "是";
+  if (value === false) return "否";
+  if (value === null) return "未提供";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return JSON.stringify(value);
+}
+
 function CorrectionForm({ offerings }: Readonly<{ offerings: readonly PilotOffering[] }>) {
   const [state, setState] = useState<"idle" | "pending" | "success" | "error">("idle");
 
@@ -155,6 +163,34 @@ export function DecisionSummary({ offerings, snapshot }: DecisionSummaryProps) {
           ))}
         </div>
       </section>
+
+      {snapshot.updates.length > 0 ? (
+        <section className="decision-section panel" aria-labelledby="snapshot-updates-title">
+          <h2 id="snapshot-updates-title">信息更新</h2>
+          <div className="result-offerings">
+            {snapshot.updates.map((update) => (
+              <article className="result-offering" key={update.notification_id}>
+                <h3>已复核：{update.corrected_field}</h3>
+                <p>
+                  原值：{publicValue(update.old_value)} → 新值：{publicValue(update.new_value)}
+                </p>
+                <p>
+                  官方来源：
+                  <a href={update.source.url} rel="noreferrer" target="_blank">
+                    {update.source.title}
+                  </a>
+                </p>
+                <p>来源位置：{update.source.locator || "请查看来源全文"}</p>
+                <ul className="plain-list">
+                  {update.next_actions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="decision-section panel" aria-labelledby="next-actions-title">
         <h2 id="next-actions-title">下一步行动</h2>

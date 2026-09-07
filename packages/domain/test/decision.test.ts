@@ -43,6 +43,28 @@ describe("decision contracts", () => {
       revisit_date: null,
       snapshot_hash: "b".repeat(64),
       created_at: "2026-09-02T00:00:00Z",
+      updates: [
+        {
+          notification_id: 1,
+          corrected_field: "eligibility.sample_rule",
+          old_value: true,
+          new_value: false,
+          source: {
+            title: "2027 年招生章程修订版",
+            url: "https://yzb.example.edu/2027/rules",
+            locator: "section-1",
+          },
+          from_result_hash: "a".repeat(64),
+          to_result_hash: "c".repeat(64),
+          group_changes: {
+            eligible_known: { added: [], removed: ["offering-1"] },
+            ineligible_known: { added: ["offering-1"], removed: [] },
+            needs_confirmation: { added: [], removed: [] },
+          },
+          next_actions: ["根据更新后的资格结果重新核对候选项目"],
+          created_at: "2026-09-03T00:00:00Z",
+        },
+      ],
     };
 
     expect(decisionSnapshotSchema.parse(snapshot)).toEqual(snapshot);

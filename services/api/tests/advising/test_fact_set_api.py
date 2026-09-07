@@ -59,6 +59,7 @@ def test_fact_set_api_rejects_unknown_fact_keys(client: Client) -> None:
     "invalid_facts",
     [
         {"target_year": "2027"},
+        {"target_year": 2027.0},
         {"region": 42},
         {"study_mode": "weekend"},
         {"admission_pathway": "recommendation"},

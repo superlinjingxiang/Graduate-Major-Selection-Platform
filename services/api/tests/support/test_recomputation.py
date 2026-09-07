@@ -17,6 +17,7 @@ from django.utils import timezone
 from gradmatch.advising.comparison import create_comparison_run, create_decision_snapshot
 from gradmatch.advising.eligibility import canonical_facts_hash
 from gradmatch.advising.models import (
+    ComparisonAssessmentUsage,
     ComparisonRunResult,
     DecisionSnapshot,
     EligibilityRule,
@@ -36,9 +37,11 @@ from gradmatch.support.models import (
     JobExecution,
     OutboxEvent,
     SnapshotUpdate,
+    SnapshotUpdateNotification,
 )
 from gradmatch.support.services import (
     accept_correction,
+    begin_correction_review,
     dispatch_pending_outbox_events,
     process_recomputation_event,
     publish_correction,
@@ -133,6 +136,11 @@ def test_successive_corrections_clone_one_latest_revision_per_rule_set_family() 
             explanation="The official evidence changed.",
             submitter=reviewer,
         )
+        begin_correction_review(
+            correction_id=correction.pk,
+            reviewer=reviewer,
+            now=timezone.now(),
+        )
         accept_correction(
             correction_id=correction.pk,
             reviewer=reviewer,
@@ -168,6 +176,179 @@ def test_successive_corrections_clone_one_latest_revision_per_rule_set_family() 
             "claim_id", flat=True
         )
     ) == replacement_ids
+
+
+@pytest.mark.django_db
+def test_queued_successive_corrections_recompute_each_published_revision_in_order() -> None:
+    reviewer = create_reviewer()
+    original_claim = create_claim(create_source_document(), normalized_value=True)
+    approve_claim(original_claim, reviewer)
+    publish_claim(claim_id=original_claim.pk, reviewer=reviewer, now=timezone.now())
+    original_rule_set = create_rule_set(coverage_complete=True)
+    create_rule_with_evidence(original_rule_set, original_claim)
+    publish_rule_set(
+        rule_set_id=original_rule_set.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+    facts = {
+        "target_year": 2027,
+        "region": "北京",
+        "study_mode": "full_time",
+        "admission_pathway": "unified_exam",
+        "sample_fact": True,
+    }
+    fact_set = FactSet.objects.create(owner=reviewer)
+    fact_revision = FactSetRevision.objects.create(
+        fact_set=fact_set,
+        version=1,
+        confirmed_facts=facts,
+        input_hash=canonical_facts_hash(facts),
+    )
+    original_result = create_comparison_run(
+        fact_revision=fact_revision,
+        offering_ids=ENGINEERING_SLICE_OFFERING_IDS,
+        owner=reviewer,
+    )
+    snapshot = create_decision_snapshot(comparison_result=original_result)
+
+    first_correction = submit_correction(
+        offering=original_claim.offering,
+        field_key=original_claim.field_key,
+        proposed_source_url="https://yzb.example.edu/2027/correction-b",
+        explanation="First queued correction.",
+        submitter=reviewer,
+    )
+    begin_correction_review(
+        correction_id=first_correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+    accept_correction(
+        correction_id=first_correction.pk,
+        reviewer=reviewer,
+        source_document=create_source_document(),
+        normalized_value=False,
+        original_value="false",
+        reviewer_note="Confirmed B.",
+        now=timezone.now(),
+    )
+    first_event = publish_correction(
+        correction_id=first_correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+    first_replacement = EvidenceClaimRevision.objects.get(supersedes=original_claim)
+
+    second_correction = submit_correction(
+        offering=first_replacement.offering,
+        field_key=first_replacement.field_key,
+        proposed_source_url="https://yzb.example.edu/2027/correction-c",
+        explanation="Second queued correction.",
+        submitter=reviewer,
+    )
+    begin_correction_review(
+        correction_id=second_correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+    accept_correction(
+        correction_id=second_correction.pk,
+        reviewer=reviewer,
+        source_document=create_source_document(),
+        normalized_value=True,
+        original_value="true",
+        reviewer_note="Confirmed C.",
+        now=timezone.now(),
+    )
+    second_event = publish_correction(
+        correction_id=second_correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+
+    # Delivery may be out of order; the successor must process its predecessor
+    # before applying the exact state captured at its own publication.
+    second_result = process_recomputation_event(event_key=second_event.event_key)
+    first_result = process_recomputation_event(event_key=first_event.event_key)
+
+    assert first_result["affected_runs"] == 1
+    assert second_result["affected_runs"] == 1
+    versions = list(
+        ComparisonRunResult.objects.filter(run=original_result.run).order_by("version")
+    )
+    assert [result.version for result in versions] == [1, 2, 3]
+    first_recomputed_rule_set = ComparisonAssessmentUsage.objects.get(
+        result=versions[1], position=1
+    ).assessment.rule_set
+    second_recomputed_rule_set = ComparisonAssessmentUsage.objects.get(
+        result=versions[2], position=1
+    ).assessment.rule_set
+    assert first_recomputed_rule_set is not None
+    assert second_recomputed_rule_set is not None
+    assert first_recomputed_rule_set.revision == 2
+    assert second_recomputed_rule_set.revision == 3
+    assert SnapshotUpdate.objects.filter(old_snapshot=snapshot).count() == 2
+    assert SnapshotUpdate.objects.filter(
+        outbox_event=first_event,
+        old_snapshot=snapshot,
+    ).count() == 1
+    assert SnapshotUpdate.objects.filter(
+        outbox_event=second_event,
+        old_snapshot=snapshot,
+    ).count() == 1
+
+
+@pytest.mark.django_db
+def test_revalidation_allocates_after_an_existing_draft_revision() -> None:
+    reviewer = create_reviewer()
+    original_claim = create_claim(create_source_document())
+    approve_claim(original_claim, reviewer)
+    publish_claim(claim_id=original_claim.pk, reviewer=reviewer, now=timezone.now())
+    published = create_rule_set()
+    create_rule_with_evidence(published, original_claim)
+    publish_rule_set(rule_set_id=published.pk, reviewer=reviewer, now=timezone.now())
+    RuleSetRevision.objects.create(
+        key=published.key,
+        revision=2,
+        namespace=published.namespace,
+        target_year=published.target_year,
+        reference_year=published.reference_year,
+        manifest=published.manifest,
+        status=RuleSetRevision.Status.DRAFT,
+        coverage_complete=False,
+        created_by=published.created_by,
+    )
+    correction = submit_correction(
+        offering=original_claim.offering,
+        field_key=original_claim.field_key,
+        proposed_source_url="https://yzb.example.edu/2027/draft-collision",
+        explanation="Correction while a draft exists.",
+        submitter=reviewer,
+    )
+    begin_correction_review(
+        correction_id=correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+    accept_correction(
+        correction_id=correction.pk,
+        reviewer=reviewer,
+        source_document=create_source_document(),
+        normalized_value=False,
+        original_value="false",
+        reviewer_note="Confirmed.",
+        now=timezone.now(),
+    )
+
+    event = publish_correction(
+        correction_id=correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+
+    revised_id = cast(list[int], event.payload["revised_rule_set_ids"])[0]
+    assert RuleSetRevision.objects.get(pk=revised_id).revision == 3
 
 
 @pytest.mark.django_db
@@ -229,6 +410,11 @@ def test_recomputation_is_idempotent_and_preserves_old_results() -> None:
         proposed_source_url="https://yzb.example.edu/2027/revised-rule",
         explanation="A revised official page changes this fact.",
         submitter=reviewer,
+    )
+    begin_correction_review(
+        correction_id=correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
     )
     accept_correction(
         correction_id=correction.pk,
@@ -308,6 +494,14 @@ def test_recomputation_is_idempotent_and_preserves_old_results() -> None:
         old_result=original_result,
         new_result=recomputed,
     ).count() == 1
+    assert SnapshotUpdateNotification.objects.filter(
+        snapshot_update__outbox_event=outbox,
+        recipient=reviewer,
+    ).count() == 2
+    assert AuditEvent.objects.filter(
+        action="snapshot_update.notification_created",
+        target_type="snapshot_update_notification",
+    ).count() == 2
 
     original_result.refresh_from_db()
     original_snapshot.refresh_from_db()
@@ -329,6 +523,11 @@ def test_recomputation_is_idempotent_and_preserves_old_results() -> None:
         proposed_source_url="https://yzb.example.edu/2027/revised-rule-again",
         explanation="The official evidence changed again.",
         submitter=reviewer,
+    )
+    begin_correction_review(
+        correction_id=second_correction.pk,
+        reviewer=reviewer,
+        now=timezone.now(),
     )
     accept_correction(
         correction_id=second_correction.pk,

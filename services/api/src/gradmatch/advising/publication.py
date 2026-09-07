@@ -5,7 +5,12 @@ from datetime import datetime
 from django.db import transaction
 
 from gradmatch.accounts.models import User
-from gradmatch.accounts.roles import ADMINISTRATOR_ROLE, REVIEWER_ROLE, has_staff_role
+from gradmatch.accounts.roles import (
+    ADMINISTRATOR_ROLE,
+    EDITOR_ROLE,
+    REVIEWER_ROLE,
+    has_staff_role,
+)
 from gradmatch.catalog.models import ManifestEntry
 
 from .models import (
@@ -47,6 +52,8 @@ def publish_claim(
         raise EvidencePublicationError("The latest decision requires the reviewer role.")
     if claim.created_by is None or latest_review.reviewer.pk == claim.created_by.pk:
         raise EvidencePublicationError("A claim requires an independent reviewer.")
+    if not has_staff_role(claim.created_by, EDITOR_ROLE):
+        raise EvidencePublicationError("A claim requires a creator with the editor role.")
     event, _ = PublicationEvent.objects.get_or_create(
         claim=claim,
         defaults={"reviewer": reviewer, "published_at": now},
@@ -67,6 +74,8 @@ def publish_rule_set(
         return rule_set
     if rule_set.created_by is None or rule_set.created_by.pk == reviewer.pk:
         raise EvidencePublicationError("A rule set requires publication by a separate actor.")
+    if not has_staff_role(rule_set.created_by, EDITOR_ROLE):
+        raise EvidencePublicationError("A rule set requires a creator with the editor role.")
 
     rules = list(EligibilityRule.objects.filter(rule_set=rule_set).order_by("position"))
     if not rules:
@@ -116,8 +125,10 @@ def revise_claim(
         raise EvidencePublicationError("Only a published claim can be revised.")
     if EvidenceClaimRevision.objects.filter(supersedes=claim).exists():
         raise EvidencePublicationError("The claim already has a replacement revision.")
-    if source_document.created_by is None:
-        raise EvidencePublicationError("A revised claim requires an identified editor.")
+    if source_document.created_by is None or not has_staff_role(
+        source_document.created_by, EDITOR_ROLE
+    ):
+        raise EvidencePublicationError("A revised claim requires a creator with the editor role.")
     return EvidenceClaimRevision.objects.create(
         claim_key=claim.claim_key,
         revision=claim.revision + 1,

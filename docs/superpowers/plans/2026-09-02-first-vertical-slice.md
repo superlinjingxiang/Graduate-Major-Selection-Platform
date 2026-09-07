@@ -10,9 +10,9 @@
 
 **需求依据：** `docs/product-requirements.md`、`docs/architecture.md`、`docs/research/pilot-scope-2027-v1.md` 和 `docs/research/validation-protocol-v1.md`。
 
-## 完成检查点 — 2026-09-06
+## 完成检查点 — 更新至 2026-09-07
 
-任务 1–10 的代码、中文文档和隔离自动化验收已经完成，当前实现提交始于 `0e64db3`。全分支复核发现的出箱自动投递、并发规则修订、连续快照更新、内部诊断鉴权、事实类型和审核职责缺口也已进入实现与回归检查。最新检查收集 125 个 Python 测试，其中 124 个通过；1 个 PostgreSQL 专用并发测试因本机没有 PostgreSQL 而跳过。另有 35 个 Web 测试、7 个领域测试和 25 个工具测试，并通过严格类型检查、生产 Web 构建、OpenAPI 客户端漂移、Compose 与 CI 结构检查。详情见[2026-09-06 进度记录](../../progress/2026-09-06-first-vertical-slice.md)。
+任务 1–10 的代码、中文文档和隔离自动化验收已经完成，当前实现提交始于 `0e64db3`。后续全分支复核进一步补齐出箱自动投递、并发和连续纠错、内部诊断鉴权、严格事实类型、编辑/审核/发布职责、显式“审核中”状态，以及用户可见的幂等快照更新通知。最新检查收集 130 个 Python 测试，其中 129 个通过；1 个 PostgreSQL 专用并发测试因本机没有 PostgreSQL 而跳过。另有 36 个 Web 测试、7 个领域测试和 25 个工具测试，并通过严格类型检查、生产 Web 构建、OpenAPI/客户端漂移、Compose 与 CI 结构检查。详情见[首个纵向链路进度记录](../../progress/2026-09-06-first-vertical-slice.md)。
 
 本机只读诊断确认 Python 可用，但 PostgreSQL、Redis 和 S3 兼容对象存储当前未启动，因此没有把真实 PostgreSQL 迁移、运行中 `/health/ready` 或跨进程 Celery 消费写成已验证。AI、支付、移动端和真实来源采集继续关闭。下方 Web 路径按实际的 `apps/web/src/app`、`apps/web/src/features` 和 `apps/web/src/lib` 目录结构解析。
 

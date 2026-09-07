@@ -78,6 +78,16 @@ def claim_guest_session(
     guest_session.save(
         update_fields=("owner", "claimed_at", "revoked_at", "token_digest")
     )
+    # Notifications created while the decision belonged to an anonymous
+    # capability become account notifications when that capability is claimed.
+    from gradmatch.support.models import SnapshotUpdateNotification
+
+    SnapshotUpdateNotification.objects.filter(
+        snapshot_update__old_snapshot__comparison_result__run__guest_session=(
+            guest_session
+        ),
+        recipient__isnull=True,
+    ).update(recipient=user)
     return guest_session
 
 

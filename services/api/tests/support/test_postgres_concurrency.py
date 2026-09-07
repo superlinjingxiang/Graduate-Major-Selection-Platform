@@ -26,6 +26,7 @@ from gradmatch.advising.models import (
 from gradmatch.advising.publication import publish_claim, publish_rule_set
 from gradmatch.support.services import (
     accept_correction,
+    begin_correction_review,
     publish_correction,
     submit_correction,
 )
@@ -66,6 +67,11 @@ def test_postgres_serializes_corrections_on_the_stable_offering_lock() -> None:
             proposed_source_url="https://yzb.example.edu/2027/concurrent-correction",
             explanation="Concurrent correction regression fixture.",
             submitter=reviewer,
+        )
+        begin_correction_review(
+            correction_id=correction.pk,
+            reviewer=reviewer,
+            now=timezone.now(),
         )
         accept_correction(
             correction_id=correction.pk,

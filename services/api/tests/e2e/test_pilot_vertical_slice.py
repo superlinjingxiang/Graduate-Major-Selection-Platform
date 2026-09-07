@@ -34,6 +34,7 @@ from gradmatch.catalog.seed import PILOT_MANIFEST_KEY
 from gradmatch.support.models import JobExecution, OutboxEvent, SnapshotUpdate
 from gradmatch.support.services import (
     accept_correction,
+    begin_correction_review,
     dispatch_pending_outbox_events,
     process_recomputation_event,
     publish_correction,
@@ -261,10 +262,16 @@ def test_first_pilot_vertical_slice_is_safe_reproducible_and_idempotent(
     assert correction_response.status_code == 201
     correction_payload = correction_response.json()
 
+    begin_correction_review(
+        correction_id=cast(str, correction_payload["correction_id"]),
+        reviewer=reviewer,
+        now=timezone.now(),
+    )
+    replacement_source = create_source_document()
     accept_correction(
         correction_id=cast(str, correction_payload["correction_id"]),
         reviewer=reviewer,
-        source_document=create_source_document(),
+        source_document=replacement_source,
         normalized_value=False,
         original_value="false",
         reviewer_note="已依据本地隔离的 2027 测试来源完成复核。",
@@ -301,13 +308,29 @@ def test_first_pilot_vertical_slice_is_safe_reproducible_and_idempotent(
     outbox.refresh_from_db()
     assert outbox.processing_state == OutboxEvent.ProcessingState.PROCESSED
 
+    updated_snapshot_response = client.get(
+        f"/api/v1/decision-snapshots/{snapshot_payload['snapshot_id']}"
+    )
+    assert updated_snapshot_response.status_code == 200
+    updates = updated_snapshot_response.json()["updates"]
+    assert len(updates) == 1
+    assert updates[0]["corrected_field"] == bupt_claim.field_key
+    assert updates[0]["old_value"] is True
+    assert updates[0]["new_value"] is False
+    assert updates[0]["source"]["title"] == replacement_source.title
+    assert updates[0]["source"]["url"] == replacement_source.source_fetch.source_url
+    assert updates[0]["source"]["locator"] == replacement_source.locator
+    assert updates[0]["from_result_hash"] == original_result.result_hash
+    assert updates[0]["to_result_hash"] != original_result.result_hash
+    assert updates[0]["next_actions"] == ["根据更新后的资格结果重新核对候选项目"]
+
     public_payload = json.dumps(
         {
             "scope": scope_response.json(),
             "offerings": offerings_response.json(),
             "assessments": assessments,
             "comparison": comparison_payload,
-            "snapshot": snapshot_payload,
+            "snapshot": updated_snapshot_response.json(),
             "correction": correction_payload,
         },
         ensure_ascii=False,
