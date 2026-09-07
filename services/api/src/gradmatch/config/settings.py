@@ -41,6 +41,19 @@ ALLOWED_HOSTS = get_list_env(
     "DJANGO_ALLOWED_HOSTS",
     default=["localhost", "127.0.0.1", "testserver"],
 )
+CSRF_TRUSTED_ORIGINS = get_list_env(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    default=(
+        [
+            "http://localhost",
+            "http://127.0.0.1",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+        if IS_LOCAL_ENVIRONMENT
+        else []
+    ),
+)
 DATABASE_URL = get_env(
     "DATABASE_URL",
     default="postgresql://gradmatch:gradmatch@localhost:5432/gradmatch",

@@ -138,7 +138,11 @@ export function SignupForm() {
   });
 
   return (
-    <form className="auth-form" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+    <form
+      className="auth-form"
+      method="post"
+      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+    >
       <FormField
         error={form.formState.errors.email?.message}
         label="邮箱"
@@ -181,7 +185,11 @@ export function PasswordLoginForm() {
   });
 
   return (
-    <form className="auth-form" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+    <form
+      className="auth-form"
+      method="post"
+      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+    >
       <FormField
         error={form.formState.errors.email?.message}
         label="邮箱"
@@ -245,6 +253,7 @@ export function OneTimeCodeForm() {
       <form
         key="confirm-code"
         className="auth-form"
+        method="post"
         onSubmit={codeForm.handleSubmit((values) => confirmMutation.mutate(values))}
       >
         <FormField
@@ -267,6 +276,7 @@ export function OneTimeCodeForm() {
     <form
       key="request-code"
       className="auth-form"
+      method="post"
       onSubmit={emailForm.handleSubmit((values) => requestMutation.mutate(values))}
     >
       <FormField

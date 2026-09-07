@@ -51,39 +51,39 @@ Task 10 评审修复了：
 
 ## 最新验证证据
 
-以提交 `ffc01b4` 为基线并加入上述复核修复后，重新执行验证，结果如下：
+以提交 `4161adf` 为基线并加入本次原生环境修复后，重新执行验证，结果如下：
 
 | 检查 | 结果 |
 | --- | --- |
-| Python pytest | 130 项收集；129 项通过，1 项 PostgreSQL 专用测试因本机无服务跳过 |
+| Python pytest（默认隔离设置） | 131 项收集；130 项通过，1 项 PostgreSQL 专用测试按设计跳过 |
+| Python pytest（真实 PostgreSQL 17.11） | 131 项全部通过，包含双线程纠错发布并发测试 |
 | Ruff | 通过 |
 | Pyright 严格检查 | 0 错误、0 警告 |
 | Django 迁移漂移 | 无变化 |
 | Web Vitest | 36 项通过 |
 | 领域包 Vitest | 7 项通过 |
 | 工具脚本 Node test | 25 项通过 |
+| Playwright 浏览器 E2E | 5 项通过：公开首页、注册与登录的无 JavaScript 密码保护、完整邮箱认证、匿名决策快照 |
 | TypeScript 严格检查 | 4 个工作区包通过 |
 | Next.js 生产构建 | 通过，`/match` 与结果页为动态服务端路由 |
 | OpenAPI 客户端漂移 | 无差异 |
 | Compose/Caddy/Dockerfile 静态检查 | 通过 |
 | CI 配置检查 | 通过 |
+| 本机原生诊断 | PostgreSQL、Redis、S3 与 Python 全部正常，命令返回 0 |
 
-纵向 E2E 通过 2 项测试，其中一项直接调用底层 `socket.socket.connect`，证明进程级审计钩子会在系统连接前阻断网络；主链路通过出箱调度器而非直接调用 Celery 处理任务，且不访问真实网站。纠错后的快照响应还会验证站内通知、旧值、新值、来源和行动摘要。
+隔离的 Python 纵向 E2E 继续通过 2 项测试，其中一项直接调用底层 `socket.socket.connect`，证明进程级审计钩子会在系统连接前阻断网络；主链路通过出箱调度器而非直接调用 Celery 处理任务，且不访问真实网站。纠错后的快照响应还会验证站内通知、旧值、新值、来源和行动摘要。
+
+真实浏览器 E2E 通过 Next.js 同源代理访问 Django：完成邮箱注册、Mailpit 邮件确认、密码登录、一次性验证码登录和注销；匿名决策流程实际创建事实版本、三个资格评估、比较运行和访客快照。禁用 JavaScript 时注册表单使用 POST 退化，不再把密码写入查询字符串。
 
 ## 本机原生状态
 
-`pnpm status:native` 的 2026-09-06 实际结果：Python 与项目包可导入；PostgreSQL、Redis 和 S3 兼容对象存储连接失败；8000 和 3000 端口空闲；命令按合同以状态 1 退出。
+2026-09-07 已在 `E:\GradMatchRuntime` 完成本机原生环境：PostgreSQL 17.11、Memurai Developer 4.1.2（Redis 7 兼容）、MinIO 2025.07.18 和 Mailpit 1.31.1。程序、数据库、对象、邮件和运行日志均位于 E 盘；Docker 未参与本次运行。
 
-因此，本次不宣称以下环境项已通过：
+`pnpm status:native` 实际返回 0，Python 与项目包可导入，PostgreSQL `SELECT 1`、Redis `PING` 和 S3 bucket 检查全部成功。真实 PostgreSQL 迁移全部应用成功；API 存活接口返回 200，内部就绪接口匿名访问返回 401，Web 与 Mailpit 返回 200。
 
-- 真实 PostgreSQL 迁移与 PostgreSQL 特有锁/事务行为；仓库已提供 `GRADMATCH_TEST_DATABASE_URL` 开关和专用并发测试，等待原生 PostgreSQL 后补证；
-- 运行中 API 的 `/api/v1/health/ready`；
-- Redis 上的跨进程 Celery worker/beat 和事务出箱自动消费；
-- 真实 S3 bucket 的读写与恢复。
+跨进程采集验证由真实 Celery worker 从 Redis 接收 `ingestion.run_source`，读取本地 HTML fixture，解析 2 条记录，将原始字节写入 MinIO，并在 PostgreSQL 中完成运行记录；从 MinIO 读回的内容与 fixture 完全一致。验证后已删除唯一的烟雾数据源、运行、原始块和对象，三项计数恢复为 0，未访问真实外部来源。
 
-这些是本机依赖未启动造成的运行验证缺口，不影响隔离测试结论，但在邀请真实用户前必须补齐。
-
-本地完成审计还修复了 PostgreSQL 锁查询兼容性：纠错发布不再把外层 `SELECT FOR UPDATE` 与 `DISTINCT` 组合，而是通过 `IN` 子查询定位规则集，再对唯一外层记录加锁。新增测试同时断言外层查询启用行锁且不含 `DISTINCT`；真实 PostgreSQL 运行仍需在服务启动后补证。
+原生验证补出了两项仅在实际运行中显现的问题并已修复：纠错发布的 `FOR UPDATE` 现在只锁定 `CorrectionCase` 自身，不再尝试锁定可空外连接侧；Django 明确读取 `DJANGO_CSRF_TRUSTED_ORIGINS`，本机 3000 端口同源代理可完成认证。独立最终人工复核仍受外部审查模型用量窗口限制，尚未补证；其余自动化与原生运行证据均已完成。
 
 ## 提交与工作区边界
 
@@ -96,5 +96,6 @@ Task 10 评审修复了：
 - `184d7e3`：进程级离线 E2E 守卫。
 - `b1f98ba`：完成检查点与本进度记录；
 - `5cb43ad`：PostgreSQL 安全的重验证锁查询。
+- `4161adf`：连续纠错、审核状态、站内更新通知和严格目标年份修复。
 
 `.env`、`.idea/`、`.local-runtime/`、`apps/web/AGENTS.md` 和 `apps/web/CLAUDE.md` 仍属于本机或用户文件，没有纳入提交。`dev` 尚未在本记录生成时推送；推送属于单独外部操作。

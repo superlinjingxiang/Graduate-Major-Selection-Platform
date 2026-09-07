@@ -193,7 +193,7 @@ def publish_correction(
     # Serialise publication against one stable row so every event can capture a
     # complete, globally ordered production-rule state.
     CoverageManifest.objects.select_for_update().get(key=PILOT_MANIFEST_KEY)
-    case = CorrectionCase.objects.select_for_update().select_related(
+    case = CorrectionCase.objects.select_for_update(of=("self",)).select_related(
         "accepted_claim__supersedes"
     ).get(pk=correction_id)
     if case.status == CorrectionCase.Status.PUBLISHED.value:

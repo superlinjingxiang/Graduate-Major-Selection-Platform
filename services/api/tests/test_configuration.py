@@ -11,7 +11,11 @@ API_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = API_ROOT.parent.parent
 
 
-def import_settings_in_subprocess(**environment: str) -> subprocess.CompletedProcess[str]:
+def import_settings_in_subprocess(
+    *,
+    expression: str = "settings.SESSION_COOKIE_SECURE",
+    **environment: str,
+) -> subprocess.CompletedProcess[str]:
     child_environment = os.environ.copy()
     for variable_name in (
         "DJANGO_SECRET_KEY",
@@ -26,7 +30,7 @@ def import_settings_in_subprocess(**environment: str) -> subprocess.CompletedPro
         [
             sys.executable,
             "-c",
-            "from gradmatch.config import settings; print(settings.SESSION_COOKIE_SECURE)",
+            f"from gradmatch.config import settings; print({expression})",
         ],
         capture_output=True,
         check=False,
@@ -48,6 +52,18 @@ def test_postgresql_configuration_limits_connection_time() -> None:
     database_config = build_database_config("postgresql://user:password@database:5432/gradmatch")
 
     assert database_config["OPTIONS"] == {"connect_timeout": "1"}
+
+
+def test_settings_load_csrf_trusted_origins_for_native_web_development() -> None:
+    result = import_settings_in_subprocess(
+        expression="','.join(settings.CSRF_TRUSTED_ORIGINS)",
+        DJANGO_CSRF_TRUSTED_ORIGINS=(
+            "http://localhost:3000,http://127.0.0.1:3000"
+        ),
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "http://localhost:3000,http://127.0.0.1:3000"
 
 
 def test_production_settings_require_an_explicit_secret_key() -> None:

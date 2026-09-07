@@ -39,14 +39,58 @@ function extractOneTimeCode(emailText: string) {
 test("renders a product homepage without operational details", async ({ page }) => {
   await page.goto("/");
 
-  await expect(
-    page.getByRole("heading", { name: "把复杂选择，变成更笃定的下一步。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "先把报考资格，核对清楚。" })).toBeVisible();
   await expect(page.getByRole("link", { name: "创建账户" })).toBeVisible();
   await expect(page.getByText("平台状态")).toHaveCount(0);
   await expect(page.getByText("服务已准备就绪")).toHaveCount(0);
   await expect(page.getByText("development", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/\b(?:v)?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b/i)).toHaveCount(0);
+});
+
+test("does not place a signup password in the URL when JavaScript is unavailable", async ({
+  baseURL,
+  browser,
+}) => {
+  if (!baseURL) throw new Error("Playwright baseURL is required for this test.");
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+
+  try {
+    await page.goto(new URL("/account/signup", baseURL).toString());
+    await page.getByLabel("邮箱").fill("no-js@example.test");
+    await page.getByLabel("密码", { exact: true }).fill("private-password");
+    const submission = page.waitForRequest((request) => request.url().includes("/account/signup"));
+    await page.getByRole("button", { name: "创建账户" }).click();
+    const request = await submission;
+
+    expect(request.method()).toBe("POST");
+    expect(request.url()).not.toContain("private-password");
+  } finally {
+    await context.close();
+  }
+});
+
+test("does not place a login password in the URL when JavaScript is unavailable", async ({
+  baseURL,
+  browser,
+}) => {
+  if (!baseURL) throw new Error("Playwright baseURL is required for this test.");
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+
+  try {
+    await page.goto(new URL("/account/login", baseURL).toString());
+    await page.getByLabel("邮箱").fill("no-js-login@example.test");
+    await page.getByLabel("密码", { exact: true }).fill("private-login-password");
+    const submission = page.waitForRequest((request) => request.url().includes("/account/login"));
+    await page.getByRole("button", { name: "密码登录" }).click();
+    const request = await submission;
+
+    expect(request.method()).toBe("POST");
+    expect(request.url()).not.toContain("private-login-password");
+  } finally {
+    await context.close();
+  }
 });
 
 test("completes email verification, password and code login, account display, and logout", async ({
