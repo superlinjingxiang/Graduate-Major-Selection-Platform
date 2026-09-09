@@ -39,7 +39,9 @@ function extractOneTimeCode(emailText: string) {
 test("renders a product homepage without operational details", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "先把报考资格，核对清楚。" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "把分散的招生信息，变成清晰的选择。" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "创建账户" })).toBeVisible();
   await expect(page.getByText("平台状态")).toHaveCount(0);
   await expect(page.getByText("服务已准备就绪")).toHaveCount(0);
