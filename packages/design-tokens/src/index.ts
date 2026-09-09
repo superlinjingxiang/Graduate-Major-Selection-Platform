@@ -4,11 +4,15 @@ export const designTokens = {
       primary: "#0f766e",
       accent: "#22c55e",
       highlight: "#f59e0b",
+      ink: "#163033",
+      teal: "#0f766e",
     },
     surface: {
       canvas: "#f8fafc",
       elevated: "#e2e8f0",
       card: "#ffffff",
+      warmWhite: "#fbfaf6",
+      paleBlue: "#eaf3f7",
     },
     text: {
       primary: "#0f172a",
@@ -18,6 +22,12 @@ export const designTokens = {
     border: {
       subtle: "#cbd5e1",
       strong: "#94a3b8",
+    },
+    chart: {
+      primary: "#0f766e",
+      secondary: "#4f7c8d",
+      tertiary: "#c58b3a",
+      quaternary: "#bd6654",
     },
   },
   spacing: {
