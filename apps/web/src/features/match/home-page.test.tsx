@@ -17,4 +17,17 @@ describe("pilot home entry", () => {
       screen.queryByText(/平台状态|development|2027 北京全日制计算机统考/u),
     ).not.toBeInTheDocument();
   });
+
+  it("binds each registration year to its own visible official source", () => {
+    render(<HomePage />);
+
+    expect(screen.getByRole("link", { name: "2025 年报名人数来源（教育部）" })).toHaveAttribute(
+      "href",
+      "https://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/moe_1485/202411/t20241121_1163982.html",
+    );
+    expect(screen.getByRole("link", { name: "2026 年报名人数来源（教育部）" })).toHaveAttribute(
+      "href",
+      "https://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/moe_1485/202511/t20251124_1421370.html",
+    );
+  });
 });

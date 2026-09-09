@@ -510,10 +510,35 @@ textarea {
   margin-top: 0.8rem;
 }
 
-.registration-figure figcaption a {
+.registration-caption-copy {
+  margin: 0;
+}
+
+.registration-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.registration-sources li {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.registration-sources a {
   color: var(--gm-teal);
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+.registration-sources time {
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
 }
 
 .home-demo-section {

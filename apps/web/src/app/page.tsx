@@ -88,8 +88,20 @@ export default function HomePage() {
                 ))}
               </ol>
               <figcaption>
-                较上年减少 45 万人。来源：
-                <a href={examRegistrationTrend[1].sourceUrl}>教育部，2025-11-24 发布</a>
+                <p className="registration-caption-copy">
+                  口径：{examRegistrationTrend[0].metric}。较上年减少 45
+                  万人（由两年教育部公布值计算）。
+                </p>
+                <ul className="registration-sources">
+                  {examRegistrationTrend.map((item) => (
+                    <li key={item.year}>
+                      <a href={item.sourceUrl}>
+                        {item.year} 年报名人数来源（{item.sourceLabel}）
+                      </a>
+                      <time dateTime={item.updatedAt}>{item.updatedAt} 发布</time>
+                    </li>
+                  ))}
+                </ul>
               </figcaption>
             </figure>
           </article>
