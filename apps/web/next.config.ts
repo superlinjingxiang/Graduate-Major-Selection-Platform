@@ -7,6 +7,7 @@ const apiBaseUrl = (process.env.GRADMATCH_API_BASE_URL ?? "http://localhost:8000
 );
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   experimental: {
     extensionAlias: {
       ".js": [".ts", ".tsx", ".js"],

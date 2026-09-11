@@ -1,6 +1,12 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const navigationState = { pathname: "/programs/bnu-applied-psychology-045400" };
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigationState.pathname,
+}));
 
 import { CompareAction } from "./compare-action";
 import { CompareProvider } from "./compare-provider";
@@ -8,7 +14,10 @@ import { CompareTray } from "./compare-tray";
 import { ComparisonView } from "./comparison-view";
 
 describe("guest comparison experience", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    navigationState.pathname = "/programs/bnu-applied-psychology-045400";
+  });
 
   it("adds a program and exposes the comparison tray", async () => {
     const user = userEvent.setup();
@@ -55,5 +64,20 @@ describe("guest comparison experience", () => {
 
     await waitFor(() => expect(screen.getByText("还没有选择对比项目")).toBeVisible());
     expect(screen.getByRole("link", { name: "去搜索项目" })).toHaveAttribute("href", "/search");
+  });
+
+  it("hides the global tray while the comparison table is open", async () => {
+    navigationState.pathname = "/compare";
+    localStorage.setItem(
+      "gradmatch.demo.compare",
+      JSON.stringify(["bnu-applied-psychology-045400"]),
+    );
+    render(
+      <CompareProvider>
+        <CompareTray />
+      </CompareProvider>,
+    );
+
+    await waitFor(() => expect(screen.queryByLabelText("临时对比")).not.toBeInTheDocument());
   });
 });

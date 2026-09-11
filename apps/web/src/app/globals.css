@@ -1292,6 +1292,12 @@ textarea {
   width: min(100%, 70rem);
 }
 
+.account-shell:has(.demo-login) {
+  align-content: start;
+  align-items: start;
+  padding: 5.5rem 1.25rem 3.5rem;
+}
+
 .account-security-note {
   bottom: 1.1rem;
   color: var(--gm-text-muted);
@@ -1656,6 +1662,7 @@ textarea {
 
 .input-with-action .input {
   padding-right: 3.25rem;
+  width: 100%;
 }
 
 .password-toggle {

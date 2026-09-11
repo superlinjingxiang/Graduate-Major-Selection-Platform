@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { getDemoProgramBySlug } from "../../lib/demo-catalog";
 import { useCompare } from "./compare-provider";
 
 export function CompareTray() {
   const { clear, slugs, toggle } = useCompare();
-  if (!slugs.length) return null;
+  const pathname = usePathname();
+  if (!slugs.length || pathname === "/compare") return null;
 
   return (
     <aside aria-label="临时对比" className="compare-tray">

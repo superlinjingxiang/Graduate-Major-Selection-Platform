@@ -56,3 +56,33 @@ test("公开 Demo 在当前视口中没有页面级横向溢出", async ({ page 
     );
   }
 });
+
+test("登录页不暴露开发标记且表单控件对齐", async ({ page }) => {
+  await page.goto("/account/login?next=/compare");
+
+  const devBadgeArea = await page.locator("nextjs-portal").evaluate((element) => {
+    const badge = element.shadowRoot?.querySelector<HTMLElement>("[data-next-badge]");
+    if (!badge) return 0;
+    const box = badge.getBoundingClientRect();
+    return box.width * box.height;
+  });
+  expect(devBadgeArea).toBe(0);
+
+  const emailBox = await page.getByLabel("邮箱").boundingBox();
+  const passwordBox = await page.getByLabel("密码", { exact: true }).boundingBox();
+  expect(emailBox).not.toBeNull();
+  expect(passwordBox).not.toBeNull();
+  expect(Math.abs((emailBox?.width ?? 0) - (passwordBox?.width ?? 0))).toBeLessThanOrEqual(1);
+
+  const brandBox = await page
+    .getByRole("link", { name: /GradMatch/u })
+    .first()
+    .boundingBox();
+  const cardBox = await page.locator(".account-card").boundingBox();
+  expect(brandBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  const isSeparated =
+    (brandBox?.y ?? 0) + (brandBox?.height ?? 0) <= (cardBox?.y ?? 0) ||
+    (brandBox?.x ?? 0) + (brandBox?.width ?? 0) <= (cardBox?.x ?? 0);
+  expect(isSeparated).toBe(true);
+});
