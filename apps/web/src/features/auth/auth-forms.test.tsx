@@ -191,6 +191,20 @@ describe("authentication forms", () => {
     });
   });
 
+  it("reveals and re-hides the login password without changing it", async () => {
+    const user = userEvent.setup();
+    renderWithQuery(<PasswordLoginForm />);
+    const password = screen.getByLabelText("密码");
+
+    await user.type(password, "12345678");
+    expect(password).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: "显示密码" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("12345678");
+    await user.click(screen.getByRole("button", { name: "隐藏密码" }));
+    expect(password).toHaveAttribute("type", "password");
+  });
+
   it("requests and confirms a one-time code with the correct request shapes", async () => {
     transports.auth.POST.mockResolvedValueOnce(authenticatedResponse(401)).mockResolvedValueOnce(
       authenticatedResponse(200),

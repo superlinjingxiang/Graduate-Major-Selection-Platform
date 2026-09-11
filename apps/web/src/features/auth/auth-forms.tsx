@@ -202,6 +202,7 @@ export function PasswordLoginForm() {
         label="密码"
         {...form.register("password")}
         id="login-password"
+        showPasswordToggle
         type="password"
       />
       <Button disabled={mutation.isPending} type="submit">

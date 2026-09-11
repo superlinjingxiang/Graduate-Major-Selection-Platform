@@ -1,15 +1,15 @@
-import { PasswordLoginForm } from "../../../features/auth/auth-forms";
+import type { Metadata } from "next";
 
-export default function LoginPage() {
-  return (
-    <>
-      <p className="eyebrow">欢迎回来</p>
-      <h1>使用密码登录</h1>
-      <p>请使用已经完成邮箱验证的 GradMatch 账户。</p>
-      <PasswordLoginForm />
-      <p className="account-footnote">
-        <a href="/account/code">改用验证码登录</a>
-      </p>
-    </>
-  );
+import { DemoLogin, sanitizeNextPath } from "../../../features/auth/demo-login";
+
+export const metadata: Metadata = {
+  title: "登录｜GradMatch",
+  description: "登录后保存研究生院校与专业选择。",
+};
+
+export default async function LoginPage({ searchParams }: PageProps<"/account/login">) {
+  const { next } = await searchParams;
+  const nextPath = sanitizeNextPath(typeof next === "string" ? next : undefined);
+
+  return <DemoLogin nextPath={nextPath} />;
 }

@@ -14,6 +14,7 @@ export default function AccountLayout({ children }: AccountLayoutProps) {
         <span>GradMatch</span>
       </a>
       <section className="account-card">{children}</section>
+      <p className="account-security-note">身份服务由 GradMatch 统一管理</p>
     </main>
   );
 }
