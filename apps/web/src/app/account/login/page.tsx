@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { DemoLogin, sanitizeNextPath } from "../../../features/auth/demo-login";
+import { DemoLogin } from "../../../features/auth/demo-login";
+import { sanitizeNextPath } from "../../../features/auth/login-path";
 
 export const metadata: Metadata = {
   title: "登录｜GradMatch",

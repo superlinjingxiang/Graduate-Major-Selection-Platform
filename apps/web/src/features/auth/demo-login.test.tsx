@@ -3,7 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { DemoLogin, sanitizeNextPath } from "./demo-login";
+import { DemoLogin } from "./demo-login";
+import { sanitizeNextPath } from "./login-path";
 
 function renderLogin(nextPath = "/compare") {
   const queryClient = new QueryClient({

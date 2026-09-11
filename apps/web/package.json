@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
+    "e2e:demo": "playwright test --config=playwright.demo.config.ts",
     "lint": "pnpm exec biome check .",
     "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
     "test": "vitest run"

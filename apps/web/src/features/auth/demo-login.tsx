@@ -4,13 +4,10 @@ import Link from "next/link";
 import { type FormEvent, useId, useState } from "react";
 
 import { PasswordLoginForm } from "./auth-forms";
+import { sanitizeNextPath } from "./login-path";
 
 type LoginMethod = "wechat" | "phone";
 type PhoneStage = "request" | "confirm" | "complete";
-
-export function sanitizeNextPath(nextPath: string | undefined): string {
-  return nextPath?.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/";
-}
 
 export function DemoLogin({ nextPath }: Readonly<{ nextPath: string }>) {
   const safeNextPath = sanitizeNextPath(nextPath);

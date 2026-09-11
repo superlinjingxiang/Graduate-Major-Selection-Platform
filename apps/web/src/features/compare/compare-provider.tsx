@@ -18,6 +18,7 @@ type CompareContextValue = Readonly<{
   toggle: (slug: string) => void;
   clear: () => void;
   isFull: boolean;
+  isReady: boolean;
 }>;
 
 const CompareContext = createContext<CompareContextValue | undefined>(undefined);
@@ -62,8 +63,14 @@ export function CompareProvider({ children }: Readonly<{ children: ReactNode }>)
 
   const clear = useCallback(() => setSlugs([]), []);
   const value = useMemo<CompareContextValue>(
-    () => ({ clear, isFull: slugs.length >= MAX_COMPARE_ITEMS, slugs, toggle }),
-    [clear, slugs, toggle],
+    () => ({
+      clear,
+      isFull: slugs.length >= MAX_COMPARE_ITEMS,
+      isReady: isHydrated,
+      slugs,
+      toggle,
+    }),
+    [clear, isHydrated, slugs, toggle],
   );
 
   return <CompareContext.Provider value={value}>{children}</CompareContext.Provider>;
