@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 
 import { QueryProvider } from "../components/providers/query-provider";
+import { CompareProvider } from "../features/compare/compare-provider";
+import { CompareTray } from "../features/compare/compare-tray";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -42,7 +44,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="zh-CN">
       <body style={tokenVariables}>
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <CompareProvider>
+            {children}
+            <CompareTray />
+          </CompareProvider>
+        </QueryProvider>
       </body>
     </html>
   );

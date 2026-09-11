@@ -3,12 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { demoPrograms } from "../../lib/demo-catalog";
+import { CompareProvider } from "../compare/compare-provider";
 import { SearchExplorer } from "./search-explorer";
+
+function renderSearchExplorer(initialQuery = "") {
+  return render(
+    <CompareProvider>
+      <SearchExplorer initialQuery={initialQuery} programs={demoPrograms} />
+    </CompareProvider>,
+  );
+}
 
 describe("SearchExplorer", () => {
   it("searches by program name and exposes only matching results", async () => {
     const user = userEvent.setup();
-    render(<SearchExplorer initialQuery="" programs={demoPrograms} />);
+    renderSearchExplorer();
 
     await user.type(screen.getByRole("searchbox", { name: "搜索院校、专业或专业代码" }), "法律");
 
@@ -18,7 +27,7 @@ describe("SearchExplorer", () => {
 
   it("filters real non-empty results by region and degree type", async () => {
     const user = userEvent.setup();
-    render(<SearchExplorer initialQuery="" programs={demoPrograms} />);
+    renderSearchExplorer();
 
     await user.selectOptions(screen.getByLabelText("地区"), "上海");
     await user.selectOptions(screen.getByLabelText("学位类型"), "academic");
@@ -32,7 +41,7 @@ describe("SearchExplorer", () => {
   });
 
   it("supports an initial code query from the homepage", () => {
-    render(<SearchExplorer initialQuery="045400" programs={demoPrograms} />);
+    renderSearchExplorer("045400");
 
     expect(screen.getByText("应用心理")).toBeVisible();
     expect(screen.getByRole("searchbox")).toHaveValue("045400");
@@ -40,7 +49,7 @@ describe("SearchExplorer", () => {
 
   it("shows a recoverable empty state and clears every filter", async () => {
     const user = userEvent.setup();
-    render(<SearchExplorer initialQuery="不存在的专业" programs={demoPrograms} />);
+    renderSearchExplorer("不存在的专业");
 
     const emptyHeading = screen.getByText("暂未找到匹配项目");
     expect(emptyHeading).toBeVisible();

@@ -10,6 +10,7 @@ import {
   type DemoSearchFilters,
   searchDemoPrograms,
 } from "../../lib/demo-catalog";
+import { CompareAction } from "../compare/compare-action";
 
 type SearchExplorerProps = Readonly<{
   initialQuery: string;
@@ -156,7 +157,10 @@ export function SearchExplorer({ initialQuery, programs }: SearchExplorerProps) 
                     </dl>
                     <div className="program-card-footer">
                       <span>{program.targetYear} 招生年度</span>
-                      <Link href={`/programs/${program.slug}`}>查看详情</Link>
+                      <div className="program-card-actions">
+                        <CompareAction programSlug={program.slug} />
+                        <Link href={`/programs/${program.slug}`}>查看详情</Link>
+                      </div>
                     </div>
                   </article>
                 ))}
